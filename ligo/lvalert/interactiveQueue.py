@@ -1,0 +1,102 @@
+description = "a module that holds the interactive queue for lvalert_listenMP"
+author = "reed.essick@ligo.org"
+
+#---------------------------------------------------------------------------------------------------
+
+import time
+import json
+import ConfigParser
+
+import lvalertMPutils as utils
+
+#---------------------------------------------------------------------------------------------------
+
+def interactiveQueue(connection, config, verbose=True, sleep=0.1, maxComplete=100, maxFrac=0.5):
+    """
+    a simple function that manages a queue
+
+    connection : multiprocessing.connection instance that connects back to lvalert_listenMP
+    configname : the path to a config file for this interactiveQueue
+    verbose    : whether to print information
+    sleep      : the minimum amount of time each epoch will take. If we execute all steps faster than this, we sleep for the remaining time. Keeps us from polling connection too quickly
+    timeout    : the amount of time we stay awake after the queue is empty
+    buffer     : the extra amount of time we stay alive after timeout to make sure we kill all expected race conditions with lvalert_listenMP
+    maxComplete: the maximum number of complete items allowed in the queue before triggering a full traversal to clean them up
+    """
+    ### determine what type of process this is
+    process_type = config.get('general', 'process_type')
+    if verbose:
+        print "initializing process_type : %s"%process_type
+
+    if process_type=="test":
+        from lvalertMPutils import parseAlert
+
+    elif process_type=="event_supervisor":
+        from event_supervisor_utils import parseAlert
+
+    elif process_type=="approval_processor":
+        from approval_processor_utils import parseAlert
+
+    else:
+        raise ValueError("process_type=%s not understood"%process_type)
+
+    ### set up queue
+    queue = utils.SortedQueue() ### instantiate the queue
+    queueByGraceID = {} ### hold shorter SortedQueue's, one for each GraceID
+    complete = 0
+
+    ### iterate
+    while True:
+        start = time.time()
+
+        ### look for new data in the connection
+        if connection.poll():
+ 
+            ### this blocks until there is something to recieve, which is why we checked first!
+            e, t0 = connection.recv()
+            if verbose:
+                print "received : %s"%e
+            e = json.loads(e)
+
+            ### parse the message and insert the appropriate item into the queue
+            complete += parseAlert( queue, queueByGraceID, e, t0, config )
+
+        ### remove any completed tasks from the front of the queue
+        while len(queue) and queue[0].complete: ### skip all things that are complete already
+            item = queue.pop(0)
+            if verobse:
+                print "ALREADY COMPLETE: "+item.description
+            complete -= 1
+
+        ### iterate through queue and check for expired things...
+        if len(queue):
+            if queue[0].hasExpired():
+                item = queue.pop(0)
+                if verbose:
+                    print "performing : %s"%item.description
+                ### now, actually do somthing with that item
+                item.execute()
+                ### remove this item from queueByGraceID
+                queueByGraceID[item.graceid].pop(0) ### this *must* be the first item in this queue too!
+                if not len(queueByGraceID[item.graceid]): ### nothing left in this queue
+                    queueByGraceID.pop(item.graceid) ### remove the key from the dictionary
+
+            else:
+                pass ### do nothing
+
+        ### clean up any empty lists within queueByGraceID
+        for graceid in queueByGraceID.keys():
+            if not len(queueByGraceID[graceid]): ### nothing in this lists
+                
+        ### check to see if we have too many complete processes in the queue
+        if complete > min(len(queue)*maxFrac, maxComplete):
+            remove = [ind for ind, item in enumerate(queue) if item.complete] ### identify the items that are complete
+            remove.reverse() ### start from the back so we don't mess up any indecies
+            for ind in remove:
+                queue.pop(ind) ### remove this item
+            complete = 0
+ 
+        ### sleep if needed
+        wait = (start+sleep)-time.time() 
+        if wait > 0:
+            time.sleep(wait)
