@@ -30,12 +30,23 @@ def interactiveQueue(connection, config, verbose=True, sleep=0.1, maxComplete=10
 
     if process_type=="test":
         from lvalertMPutils import parseAlert
+        gdb = None
 
     elif process_type=="event_supervisor":
         from event_supervisor_utils import parseAlert
+        from ligo.gracedb.rest import GraceDb
+        if config.has_option('general', 'graceDB_url'):
+            gdb = GraceDB(config.get('general', 'graceDB_url')
+        else:
+            gdb = GraceDb()
 
     elif process_type=="approval_processor":
         from approval_processor_utils import parseAlert
+        from ligo.gracedb.rest import GraceDb
+        if config.has_option('general', 'graceDB_url'):
+            gdb = GraceDB(config.get('general', 'graceDB_url')
+        else:
+            gdb = GraceDb()
 
     else:
         raise ValueError("process_type=%s not understood"%process_type)
@@ -63,7 +74,7 @@ def interactiveQueue(connection, config, verbose=True, sleep=0.1, maxComplete=10
 
         ### remove any completed tasks from the front of the queue
         while len(queue) and queue[0].complete: ### skip all things that are complete already
-            item = queue.pop(0)
+            item = queue.pop(0) ### note, we expect this to have been removed from queueByGraceID already
             if verobse:
                 print "ALREADY COMPLETE: "+item.description
             complete -= 1
@@ -73,13 +84,21 @@ def interactiveQueue(connection, config, verbose=True, sleep=0.1, maxComplete=10
             if queue[0].hasExpired():
                 item = queue.pop(0)
                 if verbose:
-                    print "performing : %s"%item.description
-                ### now, actually do somthing with that item
-                item.execute()
-                ### remove this item from queueByGraceID
-                queueByGraceID[item.graceid].pop(0) ### this *must* be the first item in this queue too!
-                if not len(queueByGraceID[item.graceid]): ### nothing left in this queue
-                    queueByGraceID.pop(item.graceid) ### remove the key from the dictionary
+                    print "performing : %s"%(item.description)
+
+                item.execute( gdb, verbose=verbose ) ### now, actually do somthing with that item
+                                                     ### note: gdb is a *required* argument to standardize functionality for follow-up processes
+                                                     ####      if it is not needed, we should just pass "None"
+
+                if item.complete: ### item is now complete, so we remove it from the queue
+                    ### remove this item from queueByGraceID
+                    queueByGraceID[item.graceid].pop(0) ### this *must* be the first item in this queue too!
+                    if not len(queueByGraceID[item.graceid]): ### nothing left in this queue
+                        queueByGraceID.pop(item.graceid) ### remove the key from the dictionary
+
+                else: ### item is not complete, so we re-insert it into the queue
+                    queue.insert( item )
+                    queueByGraceID[item.graceid].insert( queueByGraceID[item.graceid].pop(0) ) ### pop and re-insert
 
             else:
                 pass ### do nothing
