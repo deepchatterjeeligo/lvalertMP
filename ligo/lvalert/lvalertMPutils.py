@@ -120,8 +120,7 @@ class QueueItem(object):
     In this way, each follow-up process should get 1 item that models the entire behavior of that process
     """
 
-    def __init__(self, graceid, t0, tasks, description="a series of connected tasks"):
-        self.graceid = graceid
+    def __init__(self, t0, tasks, description="a series of connected tasks"):
 
         self.description = description
 
@@ -131,6 +130,8 @@ class QueueItem(object):
 
         if len(tasks): ### there is something to do
             for task in self.tasks:
+                if not isinstance(task, Task):
+                    raise ValueError("each element of tasks must be an instance of ligo.lvalert.lvalertMPutils.Task")
                 task.setExpiration( t0 )
             self.sortTasks() ### ensure tasks are sorted
 
@@ -153,7 +154,7 @@ class QueueItem(object):
         """
         return time.time() > self.expiration
 
-    def execute(self, gdb, verbose=False):
+    def execute(self, verbose=False):
         """
         execute the next task
         """
@@ -161,7 +162,7 @@ class QueueItem(object):
             self.expiration = self.tasks[0].expiration
             if self.hasExpired():
                 task = self.tasks.pop(0) ### extract this task
-                task.execute( self.graceid, gdb, verbose=verbose ) ### perform this task
+                task.execute( self.graceid, self.gdb, verbose=verbose ) ### perform this task
                 self.completedTasks.append( task ) ### mark as completed
             else:
                 break

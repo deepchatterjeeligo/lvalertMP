@@ -30,23 +30,12 @@ def interactiveQueue(connection, config, verbose=True, sleep=0.1, maxComplete=10
 
     if process_type=="test":
         from lvalertMPutils import parseAlert
-        gdb = None
 
     elif process_type=="event_supervisor":
         from event_supervisor_utils import parseAlert
-        from ligo.gracedb.rest import GraceDb
-        if config.has_option('general', 'graceDB_url'):
-            gdb = GraceDB(config.get('general', 'graceDB_url')
-        else:
-            gdb = GraceDb()
 
     elif process_type=="approval_processor":
         from approval_processor_utils import parseAlert
-        from ligo.gracedb.rest import GraceDb
-        if config.has_option('general', 'graceDB_url'):
-            gdb = GraceDB(config.get('general', 'graceDB_url')
-        else:
-            gdb = GraceDb()
 
     else:
         raise ValueError("process_type=%s not understood"%process_type)
@@ -86,7 +75,7 @@ def interactiveQueue(connection, config, verbose=True, sleep=0.1, maxComplete=10
                 if verbose:
                     print "performing : %s"%(item.description)
 
-                item.execute( gdb, verbose=verbose ) ### now, actually do somthing with that item
+                item.execute( verbose=verbose ) ### now, actually do somthing with that item
                                                      ### note: gdb is a *required* argument to standardize functionality for follow-up processes
                                                      ####      if it is not needed, we should just pass "None"
 
