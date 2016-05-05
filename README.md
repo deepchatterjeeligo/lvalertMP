@@ -10,6 +10,7 @@ The actual development will be done in a working copy of the lvalert repo, where
 User's Guide
 -------------------
 To use lvalert_listenMP, you must supply a properly formatted config file. There is an example in ~/etc/lvalert_listenMP-example.ini. Note, the structure is different from lvalert_listen in several important ways
+
   1) There will be a single section for each child process, and multiple lvalert nodes can be assigned to each child. 
   2) users supply a path to a "childConfig" rather than an executable. The childConfig tells the code what to run and is standardized within the "InteractiveQueue" module.
 
