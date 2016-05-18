@@ -54,3 +54,10 @@ as well as some classes that should **not** be modified or extended.
 parseAlert and interactiveQueue manage several instances of the SortedQueue class. 
   - The instance called "queue" contains all QueueItems corresponding to all GraceDB events. "queue" is what is used to determine which QueueItem is next when multiple GraceDB events are being tracked at the same time. 
   - queueByGraceID is a dictionary with key=GraceID and value=SortedQueue(). In this way, when a QueueItem comes up in "queue" or a new alert comes in, the code can efficiently identify which group of QueueItems need to be managed by looking up the smaller SortedQueue that only contains Items for this GraceDB entry. We note that all manipulations of queueByGraceID are automatic **if and only if** the QueueItem's expiration is reached and it's execute() method is called. **However**, if parseAlert marks an Item as complete it **must** remove it from the associated SortedQueue stored within queueByGraceID otherwise it will never be removed. InteractiveQueue automatically cleans up the instance called "queue" because it can do so with efficient look-up but does not iterate through queueByGraceID.
+
+-------------------
+To Do
+-------------------
+
+-- implement checkpointing and auto-recovery
+-- implement command line interface to communicate with a running process via lvalert_send, etc
