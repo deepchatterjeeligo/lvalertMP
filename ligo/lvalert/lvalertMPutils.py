@@ -79,16 +79,15 @@ class Task(object):
     this basic object manages execution via delegation to a functionHandle supplied when instantiated
     child classes may simply define their execution commands directly as part of the class definition
     """
+    name = "task"
+    description = "a task"
 
-    def __init__(self, timeout, functionHandle, name="task", description="a task", *args, **kwargs ):
+    def __init__(self, timeout, functionHandle, *args, **kwargs ):
 
         self.timeout = timeout
         self.expiration = None ### we have to set this
 
         self.functionHandle = functionHandle
-
-        self.name = name
-        self.description = description
 
         self.args = args
         self.kwargs = kwargs
@@ -119,10 +118,10 @@ class QueueItem(object):
     each item contains a list of tasks that must be completed before the item is complete
     In this way, each follow-up process should get 1 item that models the entire behavior of that process
     """
+    name = "item"
+    description = "a series of connected tasks"
 
-    def __init__(self, t0, tasks, description="a series of connected tasks"):
-
-        self.description = description
+    def __init__(self, t0, tasks):
 
         self.t0 = t0
         self.tasks = tasks
