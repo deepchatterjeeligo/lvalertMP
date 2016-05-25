@@ -61,3 +61,4 @@ To Do
 
 -- implement checkpointing and auto-recovery
 -- implement command line interface to communicate with a running process via lvalert_send, etc
+-- change default ``test'' to also include QueueItems with multiple taks so that this functionality is exercised and demonstrated.
