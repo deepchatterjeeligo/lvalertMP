@@ -22,10 +22,12 @@ def parseAlert( queue, queueByGraceID, alert, t0, config, timeout=5.0 ):
     graceid = alert['uid']
 
     ### generate the tasks needed
-    task = Task( timeout, printAlert, description="print alert text", alert=alert )
+    ### we print the alert twice to ensure the QueueItem works as expected with multiple Tasks
+    taskA = Task( timeout, printAlert, alert=alert )
+    taskB = Task( 2*timeout, printAlert, alert=alert )
 
     ### generate the Item which houses the tasks
-    item = QueueItem( graceid, t0, [task], description="print the alert text" )
+    item = QueueItem( graceid, t0, [taskA, taskB] )
 
     ### add the item to the queue
     queue.insert( item )
