@@ -2,6 +2,8 @@
 
 %-------------------------------------------------
 
+\usepackage{fullpage}
+
 \usepackage{graphicx}
 
 \usepackage{amsmath}
@@ -17,9 +19,19 @@
 
 %-------------------------------------------------
 
+\newcommand{\stdin}{\texttt{stdin}~}
+\newcommand{\stdout}{\texttt{stdout}~}
+\newcommand{\stderr}{\texttt{stderr}~}
+
+\newcommand{\multiprocessing}{\texttt{multiprocessing}~}
+\newcommand{\multiprocessingConnection}{\texttt{multiprocessing.Connection}~}
+
 \newcommand{\GraceDB}{\texttt{GraceDB}~}
 \newcommand{\alert}{\texttt{lvalert}~}
 
+\newcommand{\lvalertListen}{\texttt{lvalert\_listen}~}
+
+\newcommand{\lvalertMP}{\texttt{lvalertMP}~}
 \newcommand{\lvalertListenMP}{\texttt{lvalert\_listenMP}~}
 \newcommand{\lvalertCommandMP}{\texttt{lvalert\_commandMP}~}
 
@@ -33,12 +45,15 @@
 \newcommand{\lvalertMPini}{\texttt{lvalert\_listenMP.ini}~}
 \newcommand{\childConfigini}{\texttt{childConfig.ini}~}
 
+\newcommand{\approvalProcessor}{\texttt{approval\_processor}~}
+\newcommand{\eventSupervisor}{\texttt{event\_supervisor}~}
+
 %-------------------------------------------------
 \begin{document}
 %-------------------------------------------------
 
 \title{
-lvalertMP User's Guide
+\lvalertMP User's Guide
 }
 
 \author{
@@ -48,59 +63,301 @@ reed.essick@ligo.org
 
 \maketitle
 
+\newpage
+
+%------------------------
+
+\tableofcontents
+\listoffigures
+
+\newpage
+
 %------------------------
 
 \section{introduction}
 
-\begin{itemize}
-    \item{describe the problem this is meant to address}
-    \item{describe how we solve the problem (change the format of the delegation but not the general idea)}
-\end{itemize}
+\lvalertListen provides an extremely flexible infrastructure from which processes can listen and respond to events within \GraceDB. 
+However, it currently only communicates with the forked process once (via \stdin) and therefore cannot send multiple \alert messages to any procesess.
+For most follow-up, this is not an issue.
+Many processes simply respond to any new event which passes a basic FAR threshold. 
+However, a few key processes will benefit from receiving all alerts about a set of events.
+Indeed, passing all \alert messages to a single process obviates the inter-process communication and associated race conditions that would be required of multiple independent processes, each forked with a separate, single \alert message.
+
+This guide describes how \lvalertListenMP addresses and resolves this problem. 
+In particular, we focus on a pedagogical description of the classes and methods used within the executables.
+We also focus on the user's interface with the tools from the command line.
+
+Briefly, \lvalertListenMP uses the same interface with the \alert servers but forks child processes via Pythons multiprocessing module.
+In this way, \lvalertListenMP can communciate with the child processes repeatedly (through a shared \multiprocessingConnection object).
+The module provides a standardized way to schedule and execute follow-up activities.
+While the actual follow-up implemented here is basic, it is easily extended to achieve more complicated goals.
+An example is the \eventSupervisor library.
+
+This guide is organized as follows. In \S\ref{sec: classes, methods, configs and executables}, we enumerate and describe the basic objects, methods, configuration files and executables defined within this module. 
+This includes examples for how these might be used.
+In \S\ref{sec: workflow}, we demonstrate the workflow within \lvalertListenMP and describe how the various parts work together to manage follow-up tasks.
+Finally, we discuss existing and suggested extensions in \S\ref{sec: suggested extensions}.
 
 %------------------------
 
 \section{classes, methods, configs and executables}
+\label{sec: classes, methods, configs and executables}
+
+This section defines the classes (\S\ref{sec: classes}), methods (\S\ref{sec: methods}), configuration files (\S\ref{sec: configs}), and executables (\S\ref{sec: executables}) that are necessary for \lvalertListenMP to function. 
+Their interactions are described in \S\ref{sec: workflow}, so we focus on the particular responsibilities associated with each element here.
 
 %-----------
 
 \subsection{classes}
+\label{sec: classes}
+
+There are three (3) main classes defined within \lvalertMP:
+\begin{itemize}
+    \item{\SortedQueue (\S\ref{sec: SortedQueue})}
+    \item{\QueueItem (\S\ref{sec: QueueItem})}
+    \item{\Task (\S\ref{sec: Task})}
+\end{itemize}
+These objects are what allow \lvalertListenMP to define and schedule multiple follow-up activities based on \alert messages about multiple events within a single process.
+In particular, individual activities are encapsulated as \Task objects.
+Each \QueueItem is associated with one or more \Task objects.
+\SortedQueue contains an ordered list of \QueueItem instances, and when each \QueueItem \textit{expires} the activities associated therewith are accomplished through a call to \QueueItem.execute(), which in turn delegates to \Task.execute() for each associated \Task instance as needed.
+Futhermore, \QueueItem instances posses the concept of ``completion'' and will label themselves as ``completed'' when all their \Task instances have been run.
+
+%---
 
 \subsubsection{\SortedQueue}
+\label{sec: SortedQueue}
+
+The \SortedQueue class is a simple wrapper around a Python \texttt{list} that manages the order of the elements within the \texttt{list}.
+We require all elements to be a subclass of \QueueItem and so ensure that each element has a notion of \textit{expiration}.
+Furthermore, \SortedQueue supports a few basic \texttt{list} manipulations and queries.
+
+\noindent
+\textit{attributes}
+
+\begin{itemize}
+    \item{queue}
+\end{itemize}
+
+\noindent
+\textit{methods}
+
+\begin{itemize}
+    \item{\_\_init\_\_}
+    \item{\_\_len\_\_}
+    \item{\_\_getitem\_\_}
+    \item{insert}
+    \item{pop}
+    \item{clean}
+\end{itemize}
+
+
+%---
 
 \subsubsection{\QueueItem}
+\label{sec: QueueItem}
+
+The \QueueItem class encapsulates the idea of a single follow-up process.
+Each processes may be required to do several things and must order or schedule those things internally.
+\QueueItem instances accomplish this by storing two \texttt{list}s of \Task objects, with each \Task respresenting a single activity.
+As the \Task instances are completed (via delegation through \Task.execute), they are shuffled from the \textit{tasks} list to the \textit{completedTasks} list.
+\QueueItem's also contain the concepts of \textit{expiration} (when the next \Task should be executed) as well as \textit{completion} (whether there are more tasks to be completed).
+We note that the internal storage of ordered \Task instances within the \QueueItem is extremely similar to the ordered storage within \SortedQueue instances.
+If desired, multiple \Task instances can be scheuduled and managed with \SortedQueue alone by assigning a single \Task to each \QueueItem and filling the \SortedQueue with multiple \QueueItem instances.
+However, we allow \QueueItem instances to manage multiple tasks because this can sometimes simplify the representation of single follow-up processes.
+
+\noindent
+\textit{attributes}
+
+\begin{itemize}
+    \item{name}
+    \item{description}
+    \item{t0}
+    \item{tasks}
+    \item{completedTasks}
+    \item{expiration}
+\end{itemize}
+
+\noindent
+\textit{methods}
+
+\begin{itemize}
+    \item{\_\_init\_\_}
+    \item{sortTasks}
+    \item{hasExpired}
+    \item{execute}
+    \item{add}
+    \item{remove}
+\end{itemize}
+
+%---
 
 \subsubsection{\Task}
+\label{sec: Task}
+
+Each \Task represents one follow-up activity.
+Each follow-up process may perform multiple activities and therefore correspond to multiple \Task objects.
+These are grouped together under a single \QueueItem instance for each follow-up process.
+
+\Task instances peform the actual follow-up activities through delegation and to their \textit{functionHandle} attributes.
+There is a standardized input argument format for \textit{functionHandle} calls which is followed by the \Task.execute call.
+This can be changed and/or modified by creating an extension of the \Task and overwriting the execute method.
+
+\Task objects also contain the concept of \textit{timing out} and \textit{expiration}.
+When they are instantiated, they only know of their \textit{timeout}, or the number of seconds (after some reference time) which must ellapse before they should be executed.
+When the \textit{setExpiration} method is called, the \textit{expiration} time is computed using the supplied reference time to compute a global time-stamp.
+Note, if we can call \textit{setExpiration} repeatedly if needed.
+
+\noindent
+\textit{attributes}
+
+\begin{itemize}
+    \item{name}
+    \item{description}
+    \item{timeout}
+    \item{expiration}
+    \item{functionHandle}
+    \item{args}
+    \item{kwargs}
+\end{itemize}
+
+\noindent
+\textit{methods}
+
+\begin{itemize}
+    \item{\_\_init\_\_}
+    \item{setExpiration}
+    \item{hasExpired}
+    \item{execute}
+\end{itemize}
 
 %-----------
 
 \subsection{methods}
+\label{sec: methods}
+
+\begin{itemize}
+    \item{\interactiveQueue (\S\ref{sec: interactiveQueue})}
+    \item{\parseAlert (\S\ref{sec: parseAlert})}
+\end{itemize}
+
+%---
 
 \subsubsection{\interactiveQueue}
+\label{sec: interactiveQueue}
+
+\noindent
+\textit{arguments}
+
+\begin{itemize}
+    \item{connection}
+    \item{config}
+    \item{verbose}
+    \item{sleep}
+    \item{maxComplete}
+    \item{maxFrac}
+\end{itemize}
+
+\noindent
+\textit{key internal variables}
+
+\begin{itemize}
+    \item{queue}
+    \item{queueByGraceID}
+    \item{complete}
+    \item{process\_type}
+\end{itemize}
+
+%---
 
 \subsubsection{\parseAlert}
+\label{sec: parseAlert}
+
+\noindent
+\textit{arguments}
+
+\begin{itemize}
+    \item{queue}
+    \item{queueByGraceID}
+    \item{alert}
+    \item{t0}
+    \item{config}
+    \item{timeout}
+\end{itemize}
+
+\noindent
+\textit{key internal variables}
+
+\textbf{what do we put here? This depends strongly on the process\_type.}
 
 %-----------
 
 \subsection{configs}
+\label{sec: configs}
+
+\begin{itemize}
+    \item{\lvalertMPini (\S\ref{sec: lvalertMPini})}
+    \item{\childConfigini (\S\ref{sec: childConfigini})}
+\end{itemize}
+
+%---
 
 \subsubsection{\lvalertMPini}
+\label{sec: lvalertMPini}
+
+%---
 
 \subsubsection{\childConfigini}
+\label{sec: childConfigini}
 
 %-----------
 
 \subsection{executables}
+\label{sec: executables}
+
+\begin{itemize}
+    \item{\lvalertListenMP (\S\ref{sec: lvalertListenMP})}
+    \item{\lvalertCommandMP (\S\ref{sec: lvalertCommandMP})}
+\end{itemize}
+
+%---
 
 \subsubsection{\lvalertListenMP}
+\label{sec: lvalertListenMP}
+
+\noindent
+\textit{options}
+
+\begin{itemize}
+    \item{username}
+    \item{password (FIXME!)}
+    \item{server}
+    \item{resource}
+    \item{config-file}
+    \item{show}
+    \item{node}
+    \item{verbose}
+    \item{debug}
+    \item{version}
+\end{itemize}
+
+%---
 
 \subsubsection{\lvalertCommandMP}
+\label{sec: lvalertCommandMP}
+
+\textbf{WRITE this executable and document it here!}
+
+\noindent
+\textit{options}
 
 %------------------------
 
 \section{workflow}
+\label{sec: workflow}
 
 \begin{figure}
-    \begin{tikzpicture}[->,>=stealth', shorten >= 1pt, auto, node distance=3.50cm, semithick]
+    \begin{tikzpicture}[->,>=stealth', shorten >= 1pt, auto, node distance=4.50cm, semithick]
         \tikzset{
            server/.style={
                         rectangle,
@@ -186,10 +443,7 @@ reed.essick@ligo.org
     \label{fig: alert flow}
 \end{figure}
 
-%------------------------
-
 \begin{figure}
-
 \begin{verbatim}
 queue = \SortedQueue()
 queueByGID = {} <--- explain why we have both queue and queueByGID
@@ -214,11 +468,18 @@ while True:
 \end{figure}
 
 \begin{figure}
-
-    \caption{figure showing what happens within \parseAlert}
+\begin{verbatim}
+parseAlert must return an integer representing the change in the number of completed QueueItems in queue.
+Otherwise, all bets are off. However, we should show how event_supervisor accomplishes this.
+\end{verbatim}
+    \caption{figure showing what happens within \parseAlert as it is written within \eventSupervisor}
     \label{fig: parseAlert}
 \end{figure}
 
+%------------------------
+
+\section{Suggested implementations of extensions using this module}
+\label{sec: suggested extensions}
 
 %-------------------------------------------------
 \end{document}
