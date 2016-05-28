@@ -60,6 +60,15 @@ class SortedQueue(object):
         return self.queue[ind]
 
     def insert(self, newItem):
+        """
+        insert a newItem into the queue
+        requires newItem to be a subclass of QueueItem and 
+        always inserts newItem in the correct location to 
+        preserve the queue's order
+
+        WARNING: insertion is achieved via a direct iteration over the queue. 
+        We may be able to speed this up with a clever data structure (besides a linked list)
+        """
         if not isinstance(newItem, QueueItem):
             raise ValueError("SortedQueue *must* contain only QueueItems")
 
@@ -70,8 +79,20 @@ class SortedQueue(object):
         else:
             self.queue.append( newItem )
 
-    def pop(self, ind):
+    def pop(self, ind=0):
+        """
+        removes and returns the item stored at ind in the queue
+        """
         return self.queue.pop(ind)
+
+    def clean(self):
+        """
+        remove all completed items from the queue
+        """
+        remove = [ind for ind, item in enumerate(self.queue) if item.complete] ### identify the items that are complete
+        remove.reverse() ### start from the back so we don't mess up any indecies
+        for ind in remove:
+            queue.pop(ind) ### remove this item
 
 #-------------------------------------------------
 
@@ -126,18 +147,12 @@ class QueueItem(object):
     def __init__(self, t0, tasks):
 
         self.t0 = t0
-        self.tasks = tasks
+        self.tasks = []
         self.completedTasks = []
 
         if len(tasks): ### there is something to do
-            for task in self.tasks:
-                if not isinstance(task, Task):
-                    raise ValueError("each element of tasks must be an instance of ligo.lvalert.lvalertMPutils.Task")
-                task.setExpiration( t0 )
-            self.sortTasks() ### ensure tasks are sorted
-
+            self.add( tasks )
             self.complete = False
-
         else: ### there is nothing to do
             self.expiration = -infty ### nothing to do, so we are already expired
             self.complete = True
@@ -169,5 +184,29 @@ class QueueItem(object):
                 break
         self.complete = len(tasks)==0 ### only complete when there are no remaining tasks
 
+    def add(self, newTasks):
+        """
+        adds a new task to the stored list
+        """
+        if not hasattr( newTasks, "__iter__"):
+            newTasks = [newTasks]
+        for task in newTasks:
+            if not issubclass(task, Task):
+                raise ValueError("each element of tasks must be an instance of ligo.lvalert.lvalertMPutils.Task")
+            task.setEpiration( t0 )
+            self.tasks.append( newTask )
+        self.sortTasks() ### ensure tasks are sorted
+
+    def remove(self, taskName):
+        """
+        removes and returns the first instance of Task with a name matching taskName
+        if taskName does not match any of the existing tasks, we raise a KeyError
+        """
+        for ind, task in enumerate(self.tasks):
+            if task.name==taskName:
+                return self.tasks.pop( ind )
+        else:
+            raise KeyError('could not find a task with name=%s'%(taskName))
+        
 #---------------------------------------------------------------------------------------------------
 

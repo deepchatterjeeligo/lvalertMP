@@ -95,13 +95,11 @@ def interactiveQueue(connection, config, verbose=True, sleep=0.1, maxComplete=10
         ### clean up any empty lists within queueByGraceID
         for graceid in queueByGraceID.keys():
             if not len(queueByGraceID[graceid]): ### nothing in this lists
-                
+               queueByGraceID.pop(graceid) ### remove this key from the dictionary
+ 
         ### check to see if we have too many complete processes in the queue
         if complete > min(len(queue)*maxFrac, maxComplete):
-            remove = [ind for ind, item in enumerate(queue) if item.complete] ### identify the items that are complete
-            remove.reverse() ### start from the back so we don't mess up any indecies
-            for ind in remove:
-                queue.pop(ind) ### remove this item
+            queue.clean()
             complete = 0
  
         ### sleep if needed
