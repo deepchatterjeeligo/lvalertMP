@@ -19,6 +19,10 @@
 
 %-------------------------------------------------
 
+\newcommand{\FIXME}[1]{\textcolor{red}{\textbf{#1}}}
+
+%-------------------------------------------------
+
 \newcommand{\stdin}{\texttt{stdin}~}
 \newcommand{\stdout}{\texttt{stdout}~}
 \newcommand{\stderr}{\texttt{stderr}~}
@@ -132,27 +136,62 @@ The \SortedQueue class is a simple wrapper around a Python \texttt{list} that ma
 We require all elements to be a subclass of \QueueItem and so ensure that each element has a notion of \textit{expiration}.
 Furthermore, \SortedQueue supports a few basic \texttt{list} manipulations and queries.
 
+\vspace{0.5cm}
 \noindent
 \textit{attributes}
 
 \begin{itemize}
-    \item{queue}
+    \item{queue [\texttt{list}]
+        \begin{itemize}
+            \item{a Python \texttt{list} which stores the \QueueItem instances. \SortedQueue orders the elements of this \texttt{list} and provides some high level interface functionality to manipulate them.}
+        \end{itemize}
+         }
 \end{itemize}
 
 \noindent
 \textit{methods}
 
 \begin{itemize}
-    \item{\_\_init\_\_}
-    \item{\_\_len\_\_}
-    \item{\_\_getitem\_\_}
-    \item{insert}
-    \item{pop}
-    \item{clean}
+    \item{\_\_init\_\_()
+        \begin{itemize}
+            \item{basic instantiation. Sets the \textit{queue} attribute to an empty list.}
+        \end{itemize}
+         }
+    \item{\_\_len\_\_()
+        \begin{itemize}
+            \item{returns the length of the \texttt{list} stored as the \textit{queue} attribute.}
+        \end{itemize}
+         }
+    \item{\_\_getitem\_\_(ind [\texttt{int}])
+        \begin{itemize}
+            \item{returns the element of \textit{queue} corresponding to a specified index.}
+        \end{itemize}
+         }
+    \item{insert(newItem [\QueueItem])
+        \begin{itemize}
+            \item{inserts the new \QueueItem into \textit{queue} in the correct order. This is done through a direct integration over \textit{queue} and could be sped up by representing \textit{queue} with a better data structure. Also checks that the new \texttt{list} item is a sublcass of \QueueItem.}
+        \end{itemize}
+         }
+    \item{pop(ind=0 [\texttt{int}])
+        \begin{itemize}
+            \item{removes and returns the \QueueItem corresponding the the specified index. The default is to return the first item in \textit{queue}.}
+        \end{itemize}
+         }
+    \item{clean()
+        \begin{itemize}
+            \item{removes all \QueueItem instances marked as \textit{completed} from \textit{queue}. This allows us to simply modify an attribute of a \QueueItem upon execution or during \parseAlert (\S\ref{sec: parseAlert}) and let the \SortedQueue clean up all completed items periodically.}
+        \end{itemize}
+         }
 \end{itemize}
 
 
 %---
+
+\newpage
+
+\FIXME{left off here!}
+
+\newpage
 
 \subsubsection{\QueueItem}
 \label{sec: QueueItem}
@@ -166,28 +205,77 @@ We note that the internal storage of ordered \Task instances within the \QueueIt
 If desired, multiple \Task instances can be scheuduled and managed with \SortedQueue alone by assigning a single \Task to each \QueueItem and filling the \SortedQueue with multiple \QueueItem instances.
 However, we allow \QueueItem instances to manage multiple tasks because this can sometimes simplify the representation of single follow-up processes.
 
+\vspace{0.5cm}
 \noindent
 \textit{attributes}
 
 \begin{itemize}
-    \item{name}
-    \item{description}
-    \item{t0}
-    \item{tasks}
-    \item{completedTasks}
-    \item{expiration}
+    \item{name [\texttt{str}]
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{description [\texttt{str}]
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{t0 [\texttt{float}]
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{tasks [\texttt{list}]
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{completedTasks [\texttt{list}]
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{expiration [texttt{float}]
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
 \end{itemize}
 
 \noindent
 \textit{methods}
 
 \begin{itemize}
-    \item{\_\_init\_\_}
-    \item{sortTasks}
-    \item{hasExpired}
-    \item{execute}
-    \item{add}
-    \item{remove}
+    \item{\_\_init\_\_(t0 [\texttt{float}], tasks [\texttt{list}])
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{sortTasks()
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{hasExpired()
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{execute(verbose=False [\texttt{bool}])
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{add(newTasks [\texttt{list}])
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{remove(taskName [\texttt{str}])
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
 \end{itemize}
 
 %---
@@ -208,27 +296,72 @@ When they are instantiated, they only know of their \textit{timeout}, or the num
 When the \textit{setExpiration} method is called, the \textit{expiration} time is computed using the supplied reference time to compute a global time-stamp.
 Note, if we can call \textit{setExpiration} repeatedly if needed.
 
+\vspace{0.5cm}
 \noindent
 \textit{attributes}
 
 \begin{itemize}
-    \item{name}
-    \item{description}
-    \item{timeout}
-    \item{expiration}
-    \item{functionHandle}
-    \item{args}
-    \item{kwargs}
+    \item{name [\texttt{str}]
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{description [\texttt{str}]
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{timeout [\texttt{float}]
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{expiration [\texttt{float}]
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{functionHandle [\texttt{method}]
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{*args [\texttt{list}]
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{**kwargs [\texttt{dict}]
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
 \end{itemize}
 
 \noindent
 \textit{methods}
 
 \begin{itemize}
-    \item{\_\_init\_\_}
-    \item{setExpiration}
-    \item{hasExpired}
-    \item{execute}
+    \item{\_\_init\_\_(timeout [\texttt{float}], functionHandle [\texttt{method}], *args, **kwargs)
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{setExpiration(t0 [\texttt{float}])
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{hasExpired()
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{execute(graceid [\texttt{str}], gdb [\texttt{GraceDb}], verbose=False [\texttt{bool}], annotate=False [\texttt{bool}])
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
 \end{itemize}
 
 %-----------
@@ -246,26 +379,67 @@ Note, if we can call \textit{setExpiration} repeatedly if needed.
 \subsubsection{\interactiveQueue}
 \label{sec: interactiveQueue}
 
+\vspace{0.5cm}
 \noindent
 \textit{arguments}
 
 \begin{itemize}
-    \item{connection}
-    \item{config}
-    \item{verbose}
-    \item{sleep}
-    \item{maxComplete}
-    \item{maxFrac}
+    \item{connection
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{config
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{verbose
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{sleep
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{maxComplete
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{maxFrac
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
 \end{itemize}
 
 \noindent
 \textit{key internal variables}
 
 \begin{itemize}
-    \item{queue}
-    \item{queueByGraceID}
-    \item{complete}
-    \item{process\_type}
+    \item{queue
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{queueByGraceID
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{complete
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{process\_type
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
 \end{itemize}
 
 %---
@@ -273,22 +447,47 @@ Note, if we can call \textit{setExpiration} repeatedly if needed.
 \subsubsection{\parseAlert}
 \label{sec: parseAlert}
 
+\vspace{0.5cm}
 \noindent
 \textit{arguments}
 
 \begin{itemize}
-    \item{queue}
-    \item{queueByGraceID}
-    \item{alert}
-    \item{t0}
-    \item{config}
-    \item{timeout}
+    \item{queue
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{queueByGraceID
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{alert
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{t0
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{config
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{timeout
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
 \end{itemize}
 
 \noindent
 \textit{key internal variables}
 
-\textbf{what do we put here? This depends strongly on the process\_type.}
+\FIXME{what do we put here? This depends strongly on the process\_type.}
 
 %-----------
 
@@ -325,20 +524,61 @@ Note, if we can call \textit{setExpiration} repeatedly if needed.
 \subsubsection{\lvalertListenMP}
 \label{sec: lvalertListenMP}
 
+\vspace{0.5cm}
 \noindent
 \textit{options}
 
 \begin{itemize}
-    \item{username}
-    \item{password (FIXME!)}
-    \item{server}
-    \item{resource}
-    \item{config-file}
-    \item{show}
-    \item{node}
-    \item{verbose}
-    \item{debug}
-    \item{version}
+    \item{username
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{password (\FIXME{FIXME! support \texttt{.netrc} instead of \texttt{--password} option.)}
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{server
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{resource
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{config-file
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{show
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{node
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{verbose
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{debug
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
+    \item{version
+        \begin{itemize}
+            \item{}
+        \end{itemize}
+         }
 \end{itemize}
 
 %---
@@ -346,8 +586,9 @@ Note, if we can call \textit{setExpiration} repeatedly if needed.
 \subsubsection{\lvalertCommandMP}
 \label{sec: lvalertCommandMP}
 
-\textbf{WRITE this executable and document it here!}
+\FIXME{WRITE this executable and document it here!}
 
+\vspace{0.5cm}
 \noindent
 \textit{options}
 
@@ -355,6 +596,12 @@ Note, if we can call \textit{setExpiration} repeatedly if needed.
 
 \section{workflow}
 \label{sec: workflow}
+
+\begin{itemize}
+    \item{how \alert messages are passed from the server to the separate (child) processes}
+    \item{workflow within \interactiveQueue and how this manages the \SortedQueue instances}
+    \item{workflow within \parseAlert and what this is responsible for}
+\end{itemize}
 
 \begin{figure}
     \begin{tikzpicture}[->,>=stealth', shorten >= 1pt, auto, node distance=4.50cm, semithick]
@@ -478,8 +725,15 @@ Otherwise, all bets are off. However, we should show how event_supervisor accomp
 
 %------------------------
 
-\section{Suggested implementations of extensions using this module}
+\section{suggested extensions}
 \label{sec: suggested extensions}
+
+\begin{itemize}
+    \item{walk through \eventSupervisor \parseAlert and how it standardizes \_\_init\_\_ API and the relation to sub-modules and config files.}
+    \item{walk through how \eventSupervisor extends \Task object to send emails as part of the the execute method, etc}
+    \item{walk through the \texttt{bayestar} module within \eventSupervisor to demonstrate class extensions for ``well behaved'' follow-up processes.}
+    \item{a suggestion of how \approvalProcessor might accomplish it's goals using the \SortedQueue architecture. Essentially, this becomes a scheduler (like Condor's queue) but with limited scope and functionality}
+\end{itemize}
 
 %-------------------------------------------------
 \end{document}
