@@ -15,7 +15,7 @@ def printAlert( graceid, alert="blah" ):
     """
     print "%s : %s" % (graceid, alert)
 
-def parseAlert( queue, queueByGraceID, alert, t0, config, timeout=5.0 ):
+def parseAlert( queue, queueByGraceID, alert, t0, config ):
     """
     figures out what type of action needs to be taken and modifies SortedQueue as needed
     """
@@ -23,8 +23,8 @@ def parseAlert( queue, queueByGraceID, alert, t0, config, timeout=5.0 ):
 
     ### generate the tasks needed
     ### we print the alert twice to ensure the QueueItem works as expected with multiple Tasks
-    taskA = Task( timeout, printAlert, alert=alert )
-    taskB = Task( 2*timeout, printAlert, alert=alert )
+    taskA = Task(  5.0, printAlert, alert=alert )
+    taskB = Task( 10.0, printAlert, alert=alert )
 
     ### generate the Item which houses the tasks
     item = QueueItem( graceid, t0, [taskA, taskB] )
@@ -101,6 +101,9 @@ class Task(object):
     a task to be complted by a QueueItem
     this basic object manages execution via delegation to a functionHandle supplied when instantiated
     child classes may simply define their execution commands directly as part of the class definition
+
+    functionHandle is called using this signature:
+        self.functionHandle( verbose=verbose, *self.args, **self.kwargs )
     """
     name = "task"
     description = "a task"
@@ -129,11 +132,11 @@ class Task(object):
             raise ValueError("must call setExpiration before calling hasExpired!")
         return time.time() > self.expiration
 
-    def execute(self, graceid, gdb, verbose=False, annotate=False):
+    def execute(self, verbose=False):
         """
         perform associated function call
         """
-        return self.functionHandle( graceid, gdb, verbose=verbose, annotate=annotate, *self.args, **self.kwargs )
+        return self.functionHandle( verbose=verbose, *self.args, **self.kwargs )
 
 class QueueItem(object):
     """
@@ -161,8 +164,11 @@ class QueueItem(object):
         """
         sort (remaining) tasks by expiration
         """
-        self.tasks.sort(key=lambda l: l.expiration)
-        self.expiration = self.tasks[0].expiration
+        if self.tasks:
+            self.tasks.sort(key=lambda l: l.expiration)
+            self.expiration = self.tasks[0].expiration
+        else:
+            self.expiration = -infty
 
     def hasExpired(self):
         """
@@ -178,7 +184,7 @@ class QueueItem(object):
             self.expiration = self.tasks[0].expiration
             if self.hasExpired():
                 task = self.tasks.pop(0) ### extract this task
-                task.execute( self.graceid, self.gdb, verbose=verbose ) ### perform this task
+                task.execute( verbose=verbose ) ### perform this task
                 self.completedTasks.append( task ) ### mark as completed
             else:
                 break

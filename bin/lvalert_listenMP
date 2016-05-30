@@ -225,6 +225,8 @@ class LVAlertHandler(object):
 
         for mp_child_name, (proc, conn) in self.procs.items(): ### clean up any processes we haven't checked in a while
             if not proc.is_alive(): ### process has died
+                for proc, conn in self.procs.values(): ### send SIGKILL to all child processes to clean them up
+                    proc.terminate()
                 raise RuntimeError("child=%s died"%(mp_child_name)) 
 
         return True

@@ -11,7 +11,7 @@ import lvalertMPutils as utils
 
 #---------------------------------------------------------------------------------------------------
 
-def interactiveQueue(connection, config, verbose=True, sleep=0.1, maxComplete=100, maxFrac=0.5):
+def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxComplete=100, maxFrac=0.5):
     """
     a simple function that manages a queue
 
@@ -24,6 +24,9 @@ def interactiveQueue(connection, config, verbose=True, sleep=0.1, maxComplete=10
     maxComplete: the maximum number of complete items allowed in the queue before triggering a full traversal to clean them up
     """
     ### determine what type of process this is
+    config = ConfigParser.SafeConfigParser()
+    config.read( config_filename )
+
     process_type = config.get('general', 'process_type')
     if verbose:
         print "initializing process_type : %s"%process_type
