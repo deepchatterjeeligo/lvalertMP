@@ -1036,7 +1036,14 @@ For a concrete example of how \eventSupervisor implements \parseAlert functional
 \label{sec: eventSupervisor Task}
 
 \FIXME{walk through how \eventSupervisor extends \Task object to send emails as part of the the execute method, etc.}
-\FIXME{may also need to change QI.execute() signature within \eventSupervisor so that it passes GID, gdb $\rightarrow$ Task.execute correctly}
+
+%-------------
+
+\subsection{\eventSupervisor \QueueItem extension}
+\label{sec: eventSupervisor QueueItem}
+
+\FIXME{walk through the extension to \QueueItem within \eventSupervisor so that it passes the necessary things to the \Task extension}
+\FIXME{may also need to change QI.execute() signature within \eventSupervisor so that it passes GID, gdb $\rightarrow$ Task.execute correctly (from attributes rather than input arguments)}
 
 %-------------
 
