@@ -94,7 +94,7 @@ This guide describes how \lvalertListenMP addresses and resolves this problem.
 In particular, we focus on a pedagogical description of the classes and methods used within the executables.
 We also focus on the user's interface with the tools from the command line.
 
-Briefly, \lvalertListenMP uses the same interface with the \alert servers as \lvalertListen but forks child processes via Pythons multiprocessing module.
+Briefly, \lvalertListenMP uses the same interface with the \alert servers as \lvalertListen but forks child processes via Pythons \multiprocessing module.
 In this way, \lvalertListenMP can communciate with the child processes repeatedly (through a shared \multiprocessingConnection object).
 The module provides a standardized way to schedule and execute follow-up activities.
 While the actual follow-up implemented here is basic, it is easily extended to achieve more complicated goals.
@@ -102,7 +102,7 @@ An example is the \eventSupervisor library.
 
 This guide is organized as follows. In \S\ref{sec: classes, methods, configs and executables}, we enumerate and describe the basic objects, methods, configuration files, and executables defined within this module. 
 This includes examples for how these might be used.
-In \S\ref{sec: workflow}, we demonstrate the workflow within \lvalertListenMP and describe how the various parts work together to manage follow-up tasks.
+In \S\ref{sec: workflow}, we demonstrate the workflow within \lvalertListenMP and describe how the various parts fit together to manage follow-up tasks.
 Finally, we discuss existing and suggested extensions in \S\ref{sec: suggested extensions}.
 
 %------------------------
@@ -128,7 +128,7 @@ These objects are what allow \lvalertListenMP to define and schedule multiple fo
 In particular, individual activities are encapsulated as \Task objects.
 Each \QueueItem is associated with one or more \Task objects.
 \SortedQueue contains an ordered list of \QueueItem instances, and when each \QueueItem \textit{expires} the activities associated therewith are accomplished through a call to \QueueItem.execute(), which in turn delegates to \Task.execute() for each associated \Task instance as needed.
-Futhermore, \QueueItem instances posses the concept of ``completion'' and will label themselves as ``completed'' when all their \Task instances have been run or are otherwise satisfied.
+Futhermore, \QueueItem instances posses the concept of ``completion'' and will label themselves as \textit{complete} when all their \Task instances have been run or are otherwise satisfied.
 
 %---
 
@@ -172,7 +172,7 @@ Furthermore, \SortedQueue supports a few basic \texttt{list} manipulations and q
          }
     \item{insert(newItem [\QueueItem])
         \begin{itemize}
-            \item{inserts the new \QueueItem into \textit{queue} in the correct order. This is done through a direct iteration over \textit{queue} and could be sped up by representing \textit{queue} with a better data structure. Also checks that newItem is a sublcass of \QueueItem.}
+            \item{inserts the new \QueueItem into \textit{queue} in the correct order. This is done through a direct iteration over \textit{queue} and could be sped up by representing \textit{queue} with a more efficiently searched data structure (e.g.: binary search tree). Also checks that newItem is a sublcass of \QueueItem.}
         \end{itemize}
          }
     \item{pop(ind=0 [\texttt{int}])
@@ -209,12 +209,12 @@ However, we allow \QueueItem instances to manage multiple tasks because this can
 \begin{itemize}
     \item{name [\texttt{str}]
         \begin{itemize}
-            \item{usef for look-up because it can be more vonvenient than type-checking. \eventSupervisor uses the \textit{name} attribute to extract sections from it's config file. This should be overwritten by any extension.}
+            \item{used for look-up because it can be more convenient than type-checking. \eventSupervisor uses the \textit{name} attribute to extract sections from it's config file. This should be overwritten by any extension.}
         \end{itemize}
          }
     \item{description [\texttt{str}]
         \begin{itemize}
-            \item{a simple string describint what the \QueueItem is meant to do. Should be overwritten by any extension.}
+            \item{a simple string describing what the \QueueItem is meant to do. Should be overwritten by any extension.}
         \end{itemize}
          }
     \item{t0 [\texttt{float}]
@@ -224,7 +224,7 @@ However, we allow \QueueItem instances to manage multiple tasks because this can
          }
     \item{tasks [\texttt{list}]
         \begin{itemize}
-            \item{a list of \Task instances, not necessarily ordered (ordering is managed internally), which will be manaaged within the \QueueItem.}
+            \item{a list of \Task instances, not necessarily ordered (ordering is managed internally), which will be managed within the \QueueItem.}
         \end{itemize}
          }
     \item{completedTasks [\texttt{list}]
@@ -234,7 +234,7 @@ However, we allow \QueueItem instances to manage multiple tasks because this can
          }
     \item{expiration [\texttt{float}]
         \begin{itemize}
-            \item{reflects the earlieste expiration of all uncomplted \Task instances associated with this \QueueItem. Used to determin \QueueItem's placement within \SortedQueue.}
+            \item{reflects the earliest expiration of all uncompleted \Task instances associated with this \QueueItem. Used to determine \QueueItem's placement within \SortedQueue.}
         \end{itemize}
          }
 \end{itemize}
@@ -285,13 +285,13 @@ Each follow-up process may perform multiple activities and therefore correspond 
 These are grouped together under a single \QueueItem instance for each follow-up process.
 
 \Task instances perform the actual follow-up activities through delegation to their \textit{functionHandle} attributes.
-There is a standardized input argument format for \textit{functionHandle} calls which is followed by the \Task.execute call.
+There is a signature for \textit{functionHandle} calls which is followed by the \Task.execute call.
 This can be changed and/or modified by creating an extension of the \Task and overwriting the execute method.
 
 \Task objects also contain the concept of \textit{timing out} and \textit{expiration}.
 When they are instantiated, they only know of their \textit{timeout}, or the number of seconds (after some reference time) which must ellapse before they should be executed.
 When the \textit{setExpiration} method is called, the \textit{expiration} is computed using the supplied reference time to compute a time-stamp.
-Note, if we can call \textit{setExpiration} repeatedly if needed.
+Note, if we can call \textit{setExpiration} repeatedly to reset the expiration time if needed.
 
 \vspace{0.5cm}
 \noindent
@@ -310,12 +310,12 @@ Note, if we can call \textit{setExpiration} repeatedly if needed.
          }
     \item{timeout [\texttt{float}]
         \begin{itemize}
-            \item{the amount of time (relative to some reference) that must ellapse befor the \Task needs attention.}
+            \item{the amount of time (relative to some reference) that must ellapse before the \Task needs attention.}
         \end{itemize}
          }
     \item{expiration [\texttt{float}]
         \begin{itemize}
-            \item{the time-stamp for when this \Task needs attention. Instantiated as \texttt{None} and set with \textit{setExpiration}.}
+            \item{the time-stamp for when this \Task needs attention. Instantiated as \texttt{None} and set by \textit{setExpiration}.}
         \end{itemize}
          }
     \item{functionHandle [\texttt{method}]
@@ -356,7 +356,7 @@ Note, if we can call \textit{setExpiration} repeatedly if needed.
          }
     \item{execute( verbose=False [\texttt{bool}])
         \begin{itemize}
-            \item{delegates to \textit{functionHandle} with signature: \texttt{return self.functionHandle( verbose=verbose, *args, **kwargs )}}
+            \item{delegates to \textit{functionHandle} with signature: \\ \texttt{return self.functionHandle( verbose=verbose, *args, **kwargs )}}
         \end{itemize}
          }
 \end{itemize}
@@ -371,15 +371,15 @@ There are two (2) main methods defined within \lvalertMP.
     \item{\interactiveQueue (\S\ref{sec: interactiveQueue})}
     \item{\parseAlert (\S\ref{sec: parseAlert})}
 \end{itemize}
-\interactiveQueue is called form within \lvalertListenMP via \multiprocessing and assigned a separate \PID.
+\interactiveQueue is called from within \lvalertListenMP via \multiprocessing and assigned a separate \PID.
 Therefore, \interactiveQueue handles most of the manipulations of \SortedQueue instances and execution.
 \parseAlert is called from within \interactiveQueue whenever a new \alert message is detected in the \multiprocessingConnection.
-These \alert messages are passed from \lvalertListenMP to \interactiveQueue through the \multiprocessingConnection (\S\ref{sec: workflow}), and then \parseAlert is called to manipulate the \SortedQueue's as needed.
+These \alert messages are passed from \lvalertListenMP to \interactiveQueue through the \multiprocessingConnection (\S\ref{sec: passing alerts}), and then \parseAlert is called to manipulate the \SortedQueue's as needed (\S\ref{sec: parseAlert}).
 Thus, \parseAlert contains the acutal logic for how the follow-up should behave.
 For this reason, any extension will need to define it's own \parseAlert method to control how it behaves.
 
 Note: if \interactiveQueue raises an exception or otherwise terminates, \lvalertListenMP will also terminate.
-Event if it is managing multiple \interactiveQueue instances, all of them will be terminated as \lvalertListenMP exits.
+Even if it is managing multiple \interactiveQueue instances, all of them will be terminated as \lvalertListenMP exits.
 Thus, if anything fails it all fails in an effort to avoid small problems from propagating or going undetected.
 
 %---
@@ -389,7 +389,7 @@ Thus, if anything fails it all fails in an effort to avoid small problems from p
 
 A persistent loop that listens for new \alert messages and checks if \QueueItem instances stored in a \SortedQueue need attention. 
 Manages \textit{queue} through delegation to \parseAlert and execution through \QueueItem.execute(). 
-Loads libraries baes on the \texttt{process\_type} option in the \childConfigini, which is currently hard coded to only accept three (3) possible values
+Loads libraries based on the \texttt{process\_type} option in the \childConfigini, which is currently hard coded to only accept three (3) possible values
 \begin{itemize}
     \item{test}
     \item{\eventSupervisor}
@@ -410,7 +410,7 @@ Loads libraries baes on the \texttt{process\_type} option in the \childConfigini
 \begin{itemize}
     \item{connection [\multiprocessingConnection]
         \begin{itemize}
-            \item{\multiprocessingConnection shared with \lvalertListenMP}
+            \item{\multiprocessingConnection shared with \lvalertListenMP. Used to read \alert message sent along by \lvalertListenMP.}
         \end{itemize}
          }
     \item{config\_filename [\texttt{str}]
@@ -425,7 +425,7 @@ Loads libraries baes on the \texttt{process\_type} option in the \childConfigini
          }
     \item{sleep [\texttt{float}]
         \begin{itemize}
-            \item{the miminum amount of time twe wait before checking for new \alert messages or executing \QueueItem instances within \textit{queue}}
+            \item{the miminum amount of time waited before checking for new \alert messages or executing \QueueItem instances within \textit{queue}}
         \end{itemize}
          }
     \item{maxComplete [\texttt{int}]
@@ -435,7 +435,7 @@ Loads libraries baes on the \texttt{process\_type} option in the \childConfigini
          }
     \item{maxFrac [\texttt{float}]
         \begin{itemize}
-            \item{the maximum fraction of \textit{complete} \QueueItem instances within \textit{queue} befor triggering \SortedQueue.clean().}
+            \item{the maximum fraction of \textit{complete} \QueueItem instances within \textit{queue} before triggering \SortedQueue.clean().}
         \end{itemize}
          }
 \end{itemize}
@@ -446,7 +446,7 @@ Loads libraries baes on the \texttt{process\_type} option in the \childConfigini
 \begin{itemize}
     \item{queue [\SortedQueue]
         \begin{itemize}
-            \item{an instance of \SortedQueue that contains all \QueueItem for all GraceID's. This is what is used to determine if we need to execute any \QueueItem instances during each epoch of the psersistent loop.}
+            \item{an instance of \SortedQueue that contains all \QueueItem instances for all GraceID's. This is what is used to determine if we need to execute any \QueueItem instances during each epoch of the persistent loop.}
         \end{itemize}
          }
     \item{queueByGraceID [\texttt{dict}]
@@ -456,7 +456,7 @@ Loads libraries baes on the \texttt{process\_type} option in the \childConfigini
          }
     \item{complete [\texttt{int}]
         \begin{itemize}
-            \item{the number of \QueueItem instances within \textit{queue} marked as \textit{complete}. This is used to trigger \textit{queue.clean()} along with \textit{maxComplete} and \textit{maxFrac}. \textit{complete} can be modified by executing a \QueueItem or by \parseAlert's return value.}
+            \item{the number of \QueueItem instances within \textit{queue} marked as \textit{complete}. This is used to trigger \textit{queue.clean()} along with \textit{maxComplete} and \textit{maxFrac}. \textit{complete} is modified by executing a \QueueItem or by \parseAlert's return value.}
         \end{itemize}
          }
     \item{process\_type [\texttt{str}]
@@ -478,14 +478,16 @@ In doing so, it manipulates \SortedQueue instances according to the \alert messa
 \parseAlert must return the change in the number of completed \QueueItem instances within \textit{queue}.
 Also, this must remove any newly complted \QueueItem instances from \textit{queueByGraceID} because that is not handled within \interactiveQueue.
 
-\FIXME{Change this to make \interactiveQueue handle queueByGraceID as well???}
-
 \vspace{0.5cm}
 \noindent
 \textit{returns}
 
 \begin{itemize}
-    \item{dCompleted [\texttt{int}]}
+    \item{dCompleted [\texttt{int}]
+        \begin{itemize}
+            \item{the change in the number of \QueueItem instances marked \textit{complete} in \textit{queue}.}
+        \end{itemize}
+         }
 \end{itemize}
 
 \noindent
@@ -504,7 +506,7 @@ Also, this must remove any newly complted \QueueItem instances from \textit{queu
          }
     \item{alert [\texttt{dict}]
         \begin{itemize}
-            \item{\textit{json} dictionary respresenting the \alert message. (The \texttt{str} is loaded into a \texttt{dict} within \interactiveQueue.)}
+            \item{\texttt{json} dictionary respresenting the \alert message. (The \texttt{str} is loaded into a \texttt{dict} within \interactiveQueue.)}
         \end{itemize}
          }
     \item{t0 [\texttt{float}]
@@ -514,7 +516,7 @@ Also, this must remove any newly complted \QueueItem instances from \textit{queu
          }
     \item{config [\texttt{ConfigParser.SafeConfigParser}]
         \begin{itemize}
-            \item{ConfigParser object specifying parameters for how \QueueItem instances, \Task instances, etc. should be manipulated.}
+            \item{ConfigParser object specifying parameters for how \QueueItem instances, \Task instances, etc. should be manipulated. Should be a representation of a \childConfigini (\S\ref{sec: childConfigini}).}
         \end{itemize}
          }
 \end{itemize}
@@ -523,7 +525,7 @@ Also, this must remove any newly complted \QueueItem instances from \textit{queu
 \textit{key internal variables}
 
 The actual structure of \parseAlert will depend strongly on which library is being used (determined by the \texttt{process\_type} option in \childConfigini.). 
-Thus, this should be defined in extension of \lvalertMP rather than within \lvalertMP itself.
+Thus, this should be defined in the extension of \lvalertMP rather than within \lvalertMP itself.
 We note that when \texttt{process\_type=test}, \parseAlert adds one \QueueItem which contains two \Task instances. 
 Both \Task instances simply print the \alert message, but are given different \textit{timeout} attributes.
 
@@ -533,12 +535,10 @@ Both \Task instances simply print the \alert message, but are given different \t
 \label{sec: configs}
 
 There are two (2) main types of configuration files:
-
 \begin{itemize}
     \item{\lvalertMPini (\S\ref{sec: lvalertMPini})}
     \item{\childConfigini (\S\ref{sec: childConfigini})}
 \end{itemize}
-
 \lvalertMPini controls settings for \lvalertListenMP as well as basic options passed to \interactiveQueue.
 \childConfigini specifies the \textit{process\_type} as well as everything that is needed for the associated \parseAlert method.
 
@@ -551,13 +551,15 @@ There is one section for each child processes to be spawned by \lvalertListenMP.
 Each section must have the following format
 
 \begin{verbatim}
-  [process name]
-    nodes       = nodeA nodeB
-    childConfig = path/to/config.ini
-    verbose     = True
-    sleep       = 0.1
-    maxComplete = 100
-    maxFrac     = 0.5
+  [process name]                      the nickname used to reference 
+                                        this process witin lvalert_listenMP
+    nodes       = nodeA nodeB         space-delimited list of nodes 
+                                        to be routed into this process
+    childConfig = path/to/config.ini  | passed to interactiveQueue and 
+    verbose     = True                | meanings are defined therein
+    sleep       = 0.1                 |
+    maxComplete = 100                 |
+    maxFrac     = 0.5                 |
 \end{verbatim}
 
 Note: each child process should have a unique name and can be assigned multiple \alert nodes. 
@@ -571,7 +573,7 @@ Therefore, if we wish to run multiple ``libraries'' over events from a single no
 
 There must be a \texttt{[general]} section with a \texttt{process\_type} option, but otherwise the format of the config file is entirely dependent on the library used.
 When \texttt{process\_type=test}, no other part of \childConfigini is used.
-However, \eventSupervisor provides an example of how \childConfigini can be extensively integrated into \parseAlert.
+However, \eventSupervisor provides an example of how \childConfigini can be extensively integrated into \parseAlert (\S\ref{sec: eventSupervisor parseAlert}).
 
 %-----------
 
@@ -579,12 +581,10 @@ However, \eventSupervisor provides an example of how \childConfigini can be exte
 \label{sec: executables}
 
 There are two (2) main executables included in \lvalertMP.
-
 \begin{itemize}
     \item{\lvalertListenMP (\S\ref{sec: lvalertListenMP})}
     \item{\lvalertCommandMP (\S\ref{sec: lvalertCommandMP})}
 \end{itemize}
-
 \lvalertListenMP actually schedules and runs the follow-up, while \lvalertCommandMP provides a way to communicate with and command instances of \lvalertListenMP that are already running.
 Both operate through \alert servers and pubsub nodes, using \texttt{json} notation.
 
@@ -669,7 +669,7 @@ This is accomplished through \lvalertSend, and \lvalertCommandMP simply structur
 
 Again, this strongly depends on the extension specified through the \texttt{process\_type} option in \childConfigini. 
 In this way, \lvalertCommandMP can be extended for any particular library as long as that library's \parseAlert method knows how to interpret the associated \texttt{json} messages.
-However, when \texttt{process\_type=test}, \lvalertMP provides a few example commands.
+However, when \texttt{process\_type=test}, \lvalertMP provides a few example commands: \textit{checkpoint} and \textit{kill}.
 
 \FIXME{WRITE this functionality for process\_type=test!}
 
@@ -719,25 +719,36 @@ However, when \texttt{process\_type=test}, \lvalertMP provides a few example com
 
 %------------------------
 
-\newpage
-
-\FIXME{left off here!}
-
-\newpage
-
 \section{workflow}
 \label{sec: workflow}
 
-\FIXME{describe how this all fits together}
+\S\ref{sec: classes, methods, configs and executables} described the individual pieces of \lvalertMP, and here we describe how they fit together.
+This includes how \alert messages are passed from the \alert server to the separate child processes (\S\ref{sec: passing alerts}), how the workflow within the child processes manages the \alert messages and \SortedQueue instances (\S\ref{sec: interactiveQueue workflow}), and an example of how \parseAlert can manipulate \SortedQueue instances based on \alert messages (\S\ref{sec: parseAlert workflow}).
 
-\begin{itemize}
-    \item{how \alert messages are passed from the server to the separate (child) processes}
-    \item{workflow within \interactiveQueue and how this manages the \SortedQueue instances}
-    \item{workflow within \parseAlert and what this is responsible for}
-\end{itemize}
+%-------------
+
+\subsection{\alert pathway from server to child process}
+\label{sec: passing alerts}
+
+When an \alert server sends a message, it published it to a pubsub node.
+All subscribed accounts can then receive this message.
+Therefore, if a single account is subscribed to multiple nodes it can receive messages from all of them.
+\lvalertListenMP generates a mapping between pubsub nodes and their associated child processes, specified in \lvalertMPini.
+Note, each node can only be assigned to a single process but each process can be assigned multiple nodes.
+\lvalertListenMP then passes the \texttt{str} message to the corresponding child process through the shared \multiprocessingConnection object, along with the time at which the \alert message was received.
+Therefore, \lvalertListenMP is nothing more than an additional routing step as \alert messages are passed from the server to the child processes.
+
+Within the child processes, which are each instances of \interactiveQueue (\S\ref{sec: interactiveQueue}), the \texttt{str} \alert message is converted into a \texttt{dict} by assuming \texttt{json} notation.
+The \texttt{dict} representation of the \alert message is then passed to \parseAlert (\S\ref{sec: parseAlert}) within \interactiveQueue.
+\parseAlert is responsible for interpreting the \alert message and generating new \QueueItem and \Task instances as needed.
+Each extension of \lvalertMP should define it's own \parseAlert method, which will receive all \alert messages associated with the set of nodes specified in \lvalertMPini. 
+
+Figure \ref{fig: alert flow} demonstrates this process pictorially.
+We note that we expect \alert messages to come from either \GraceDB or \lvalertCommandMP.
 
 \begin{figure}
-    \begin{tikzpicture}[->,>=stealth', shorten >= 1pt, auto, node distance=4.50cm, semithick]
+    \begin{center}
+    \begin{tikzpicture}[->,>=stealth', shorten >= 1pt, auto, node distance=3.00cm, semithick]
         \tikzset{
            server/.style={
                         rectangle,
@@ -788,92 +799,265 @@ However, when \texttt{process\_type=test}, \lvalertMP provides a few example com
         \node[server]      (GraceDB)       [above left of=lvalertServer]  {\GraceDB};
         \node[lvalertMP]   (lvalertCmd)    [above right of=lvalertServer] {\lvalertCommandMP};
 
-        \node[lvalertNode] (nodeA)         [below left of=lvalertServer]  {group\_pipeline\_search};
-        \node[lvalertNode] (nodeB)         [below of=lvalertServer]       {group\_pipeline\_search};
-        \node[lvalertNode] (nodeC)         [below right of=lvalertServer] {group\_pipeline\_search};
+        \node[lvalertNode] (nodeB)         [below of=lvalertServer]       {nodeB};
+        \node[lvalertNode] (nodeA)         [left of=nodeB]  {nodeA};
 
         \node[lvalertMP]   (lvalertMP)     [below of=nodeB]               {\lvalertListenMP};
-        \node[config]      (lvalertConfig) [right of=lvalertMP]           {\lvalertMPini};
+        \node[config]      (lvalertConfig) [above right of=lvalertMP]               {\lvalertMPini};
 
-        \node[childProc]   (childProc1)    [below left of=lvalertMP]      {\interactiveQueue};
-        \node[config]      (childConfig1)  [left of=childProc1]           {\childConfigini};
-        \node[childProc]   (childProc2)    [below right of=lvalertMP]     {\interactiveQueue};
-        \node[config]      (childConfig2)  [right of=childProc2]          {\childConfigini};
+        \node[childProc]   (childProc2)    [below of=lvalertMP]           {childProc2};
+        \node[childProc]   (childProc1)    [left of=childProc2]           {childProc1};
+
+        \node[childProc]   (intractvQ1)    [below of=childProc1]          {\interactiveQueue};
+        \node[childProc]   (intractvQ2)    [below right of=childProc2]    {\interactiveQueue};
+
+        \node[config]      (childConfig1)  [above left of=intractvQ1]     {\childConfigini};
+        \node[config]      (childConfig2)  [above right of=intractvQ2]    {\childConfigini};
+
+        \node[childProc]   (parseAlert1)   [below of=intractvQ1]          {\parseAlert};
+        \node[childProc]   (parseAlert2)   [below of=intractvQ2]          {\parseAlert};
     %--------------------
         \path (GraceDB)       edge (lvalertServer)
               (lvalertCmd)    edge (lvalertServer)
 
               (lvalertServer) edge (nodeA)
               (lvalertServer) edge (nodeB)
-              (lvalertServer) edge (nodeC)
+%              (lvalertServer) edge (nodeC)
 
               (nodeA)         edge (lvalertMP)
               (nodeB)         edge (lvalertMP)
-              (nodeC)         edge (lvalertMP)
+%              (nodeC)         edge (lvalertMP)
 
               (lvalertConfig) edge (lvalertMP)
 
               (lvalertMP)     edge (childProc1)
               (lvalertMP)     edge (childProc2)
 
-              (childConfig1)  edge (childProc1)
-              (childConfig2)  edge (childProc2);
+              (childConfig1)  edge (intractvQ1)
+              (childConfig2)  edge (intractvQ2)
+
+              (intractvQ1)    edge (parseAlert1)
+              (intractvQ2)    edge (parseAlert2)
+
+              (childProc1)    edge (intractvQ1)
+              (childProc2)    edge (intractvQ2);
     \end{tikzpicture}
+    \end{center}
     \caption{The flow of \alert messages between processes.}
     \label{fig: alert flow}
 \end{figure}
 
+%-------------
+
+\subsection{workflow within \interactiveQueue}
+\label{sec: interactiveQueue workflow}
+
+\interactiveQueue is actually quite minimalistic in it's function. 
+It begins by instantiating all the required data structures and loading the appropriate libraries (determined by the \texttt{process\_type} option in \childConfigini).
+Then it enters a persistent loop.
+During each epoch of the loop it
+\begin{enumerate}
+    \item{checks whether there is a new alert message in the \multiprocessingConnection object's buffer
+        \begin{itemize}
+            \item{if so, it reads in the alert (and \texttt{t0}) and delegates the interpretation to \parseAlert.}
+        \end{itemize}
+         }
+    \item{checks to see if the first item in the \SortedQueue has expired
+        \begin{itemize}
+            \item{while the first item in \textit{queue} is expired, execute it iteratively}
+            \item{execution is achieved through delegation to \QueueItem.execute, which in turn delegates to \Task.execute and updates the \QueueItem's attributes accordingly.}
+        \end{itemize}
+         }
+    \item{cleans up the data structures
+        \begin{itemize}
+            \item{removes any keys from \textit{queueByGraceID} that correspond to empty \SortedQueue}
+            \item{if there are too many \textit{complete} \QueueItem instances in \textit{queue}, clean it up with a call to \SortedQueue.clean}
+        \end{itemize}
+         }
+    \item{if necessary, wait a bit before proceeding to the next epoch. This is controlled by the \textit{sleep} option to \interactiveQueue.}
+\end{enumerate}
+Figure \ref{fig: interactiveQueue} demonstartes this pictorially.
+
 \begin{figure}
 
-\begin{verbatim}
-queue = \SortedQueue()
-queueByGID = {} <--- explain why we have both queue and queueByGID
+    \begin{center}
+    \begin{tikzpicture}[->,>=stealth', shorten >= 1pt, auto, node distance=1.50cm, semithick]
+        \tikzset{
+           node/.style={
+                        rectangle,
+                        rounded corners,
+                        draw=black,
+                        fill=none,
+                        text=black
+                       },
+                 };
+    %--------------------
+        \node[node]      (call)                            {call from \lvalertListenMP};
+        \node[node]      (procType) [below of=call]        {determine \texttt{process\_type}};
+        \node[node]      (instantiate) [below of=procType] {instantiate \textit{queue}, \textit{queueByGraceID}};
 
-while True:
-    is there a new alert in the mpPipe?
-        parseAlert( queue, queueByGID, alert, timeReceived )
+        \node[node]      (while) [below of=instantiate]    {persistent while loop};
 
-    clean up / manage queue
+        \node[node]      (newAlert) [below right of=while] {is there a new \alert message?};
 
-    if queue[0].has_expired:
-        item = queue.pop( 0 )
-        item.execute() <--- show how QueueItems are structures and how execute() is delegated to Tasks
-        if not item.complete:
-            queue.insert( item )
+          \node[node]      (newAlertYes) [below right of=newAlert] {yes};
+            \node[node]      (loadAlert)   [below right of=newAlertYes] {load \alert message into \texttt{dict}};
+            \node[node]      (parseAlert)  [below of=loadAlert] {delegate to \parseAlert};
+        
+          \node[node]      (newAlertNo)  [below left of=newAlert]  {no};
 
-    wait for a small amount of time before checking again
-\end{verbatim}
+        \node[node]      (hasExpired)  [below left of=parseAlert] {has the first \QueueItem in \textit{queue} expired?};
 
-\FIXME{use a flow-chart instead of pseudo-code!}
-
+          \node[node]      (hasExpiredYes) [below right of=hasExpired] {yes};
+            \node[node]    (pop) [below of=hasExpiredYes] {pop \QueueItem from \SortedQueue};
+            \node[node]      (itemExecute) [below right of=pop] {call \QueueItem.execute};
+            \node[node]      (itemComplete) [below of=itemExecute] {is \QueueItem now complete?};
+              \node[node]      (itemCompleteYes) [below right of=itemComplete] {yes};
+                \node[node] (popGID) [below right of=itemCompleteYes] {clean \textit{queueByGraceID}};
+              \node[node]      (itemCompleteNo)  [below left of=itemComplete] {no};
+                \node[node] (reinsert) [below left of=itemCompleteNo] {reinsert into \SortedQueue};
+          \node[node]      (hasExpiredNo) [below left of=hasExpired] {no};
+        \node[node] (2many) [below left of=reinsert] {too many complete items?};
+          \node[node] (2manyYes) [below right of=2many] {yes};
+            \node[node] (clean) [below of=2manyYes] {clean \textit{queue}};
+          \node[node] (2manyNo) [below left of=2many] {no};
+        \node[node] (wait) [below left of=clean] {wait};
+    %--------------------
+        \path (call)        edge (procType)
+              (procType)    edge (instantiate)
+              (instantiate) edge (while)
+              (while)       edge (newAlert)
+              (newAlert)    edge (newAlertYes)
+              (newAlert)    edge (newAlertNo)
+              (newAlertYes) edge (loadAlert)
+              (loadAlert)   edge (parseAlert)
+              (parseAlert)  edge (hasExpired)
+              (newAlertNo)  edge (hasExpired)
+              (hasExpired)  edge (hasExpiredYes)
+              (hasExpired)  edge (hasExpiredNo)
+              (hasExpiredYes) edge (pop)
+              (pop)         edge (itemExecute)
+              (itemExecute) edge (itemComplete)
+              (itemComplete) edge (itemCompleteYes)
+              (itemComplete) edge (itemCompleteNo)
+              (itemCompleteYes) edge (popGID)
+              (itemCompleteNo) edge (reinsert)
+              (hasExpiredNo) edge (2many)
+              (reinsert) edge (2many)
+              (popGID) edge (2many) 
+              (2many) edge (2manyYes)
+              (2many) edge (2manyNo)
+              (2manyYes) edge (clean)
+              (2manyNo) edge (wait)
+              (clean) edge (wait)
+              (wait) edge (while)
+        ;
+    \end{tikzpicture}
+    \end{center}
     \caption{work flow within \interactiveQueue}
     \label{fig: interactiveQueue}
 \end{figure}
 
+%-------------
+
+\subsection{example workflow within \parseAlert}
+\label{sec: parseAlert workflow}
+
+\parseAlert's actual workings should be defined in extensions of \lvalertMP.
+However, we provide a suggested roadmap in Figure \ref{fig: parseAlert}.
+It is important to remember that \parseAlert \textit{must} return the change in the number of completed \QueueItem instances within \textit{queue}.
+If it does not do this correctly, then \interactiveQueue will not clean up \textit{queue} correctly.
+
 \begin{figure}
 
-\begin{verbatim}
-parseAlert must return an integer representing the change in the number of completed QueueItems in queue.
-Otherwise, all bets are off. However, we should show how event_supervisor accomplishes this.
-\end{verbatim}
-
-\FIXME{use a flow-chart!}
-
+    \begin{center}
+    \begin{tikzpicture}[->,>=stealth', shorten >= 1pt, auto, node distance=1.50cm, semithick]
+        \tikzset{
+           node/.style={
+                        rectangle,
+                        rounded corners,
+                        draw=black,
+                        fill=none,
+                        text=black
+                       },
+                 };
+        %----------------
+        \node[node] (alert) {alert received};
+        \node[node] (identify) [below of=alert] {identify alert type/content};
+        \node[node] (complete) [below of=identify] {are any items satisfied?};
+          \node[node] (completeYes) [below right of=complete] {yes};
+            \node[node] (mark) [below right of=completeYes] {mark items as complete};
+            \node[node] (popGID) [below of=mark] {pop items from \textit{queueByGraceID}}; 
+          \node[node] (completeNo)  [below left of=complete] {no};
+        \node[node] (new) [below left of=popGID] {are new items required?};
+          \node[node] (newYes) [below right of=new] {yes};
+            \node[node] (instantiate) [below right of=newYes] {instantiate new items};
+            \node[node] (insert) [below of=instantiate] {add to \textit{queue}, \textit{queueByGraceID}};
+          \node[node] (newNo) [below left of=new] {no};
+        \node[node] (return) [below left of=insert] {return change in No. of complete items};
+        %----------------
+        \path (alert) edge (identify)
+              (identify) edge (complete)
+              (complete) edge (completeYes)
+              (complete) edge (completeNo)
+              (completeYes) edge (mark)
+              (mark) edge (popGID)
+              (popGID) edge (new)
+              (completeNo) edge (new)
+              (new) edge (newNo)
+              (new) edge (newYes)
+              (newYes) edge (instantiate)
+              (instantiate) edge (insert)
+              (insert) edge (return)
+              (newNo) edge (return)
+        ;
+    \end{tikzpicture}
+    \end{center}
     \caption{figure showing what happens within \parseAlert as it is written within \eventSupervisor}
     \label{fig: parseAlert}
 \end{figure}
 
+For a concrete example of how \eventSupervisor implements \parseAlert functionality, we refer to \S\ref{sec: eventSupervisor parseAlert}.
+
 %------------------------
+
+\newpage
+
+\FIXME{left off here!}
+
+\newpage
 
 \section{suggested extensions}
 \label{sec: suggested extensions}
 
-\begin{itemize}
-    \item{walk through \eventSupervisor \parseAlert and how it standardizes \_\_init\_\_ API and the relation to sub-modules and config files.}
-    \item{walk through how \eventSupervisor extends \Task object to send emails as part of the the execute method, etc}
-    \item{walk through the \texttt{bayestar} module within \eventSupervisor to demonstrate class extensions for ``well behaved'' follow-up processes.}
-    \item{a suggestion of how \approvalProcessor might accomplish it's goals using the \SortedQueue architecture. Essentially, this becomes a scheduler (like Condor's queue) but with limited scope and functionality}
-\end{itemize}
+%-------------
+
+\subsection{\eventSupervisor \Task extension}
+\label{sec: eventSupervisor Task}
+
+\FIXME{walk through how \eventSupervisor extends \Task object to send emails as part of the the execute method, etc.}
+\FIXME{may also need to change QI.execute() signature within \eventSupervisor so that it passes GID, gdb $\rightarrow$ Task.execute correctly}
+
+%-------------
+
+\subsection{\eventSupervisor \parseAlert}
+\label{sec: eventSupervisor parseAlert}
+
+\FIXME{walk through \eventSupervisor \parseAlert and how it standardizes \_\_init\_\_ API and the relation to sub-modules and config files.}
+
+%-------------
+
+\subsection{\eventSupervisor \texttt{bayestar} example}
+\label{sec: eventSupervisor bayestar}
+
+\FIXME{walk through the \texttt{bayestar} module within \eventSupervisor to demonstrate class extensions for ``well behaved'' follow-up processes.}
+
+%-------------
+
+\subsection{possible implementations for \approvalProcessor}
+\label{sec: approvalProcessor}
+
+\FIXME{a suggestion of how \approvalProcessor might accomplish it's goals using the \SortedQueue architecture. Essentially, this becomes a scheduler (like Condor's queue) but with limited scope and functionality.}
 
 %-------------------------------------------------
 \end{document}
