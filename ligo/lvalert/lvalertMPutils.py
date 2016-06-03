@@ -211,6 +211,10 @@ class QueueItem(object):
         for ind, task in enumerate(self.tasks):
             if task.name==taskName:
                 return self.tasks.pop( ind )
+            if len(self.tasks):
+                self.expiration = self.tasks[0].expiration
+            else:
+                self.expiration = -np.infty
         else:
             raise KeyError('could not find a task with name=%s'%(taskName))
         
