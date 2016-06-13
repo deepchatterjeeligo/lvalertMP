@@ -54,7 +54,7 @@ def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxCo
 
         ### look for new data in the connection
         if connection.poll():
- 
+
             ### this blocks until there is something to recieve, which is why we checked first!
             e, t0 = connection.recv()
             if verbose:
@@ -84,13 +84,15 @@ def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxCo
 
                 if item.complete: ### item is now complete, so we remove it from the queue
                     ### remove this item from queueByGraceID
-                    queueByGraceID[item.graceid].pop(0) ### this *must* be the first item in this queue too!
-                    if not len(queueByGraceID[item.graceid]): ### nothing left in this queue
-                        queueByGraceID.pop(item.graceid) ### remove the key from the dictionary
+                    if hasattr(item, 'graceid'): ### QueueItems are not required to have a graceid attribute, but if they do we should manage queueByGraceID
+                        queueByGraceID[item.graceid].pop(0) ### this *must* be the first item in this queue too!
+                        if not len(queueByGraceID[item.graceid]): ### nothing left in this queue
+                            queueByGraceID.pop(item.graceid) ### remove the key from the dictionary
 
                 else: ### item is not complete, so we re-insert it into the queue
                     queue.insert( item )
-                    queueByGraceID[item.graceid].insert( queueByGraceID[item.graceid].pop(0) ) ### pop and re-insert
+                    if hasattr(item, 'graceid'): ### QueueItems are not required to have a graceid attribute, but if they do we should manage queueByGraceID
+                        queueByGraceID[item.graceid].insert( queueByGraceID[item.graceid].pop(0) ) ### pop and re-insert
 
             else:
                 pass ### do nothing

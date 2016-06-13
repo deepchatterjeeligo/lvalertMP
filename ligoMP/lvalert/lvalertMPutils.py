@@ -9,10 +9,12 @@ import time
 
 #---------------------------------------------------------------------------------------------------
 
-def printAlert( graceid, alert="blah" ):
+def printAlert( graceid, alert="blah", verbose=False ):
     """
     an example action that we trigger off of an alert
     """
+    if verbose:
+        print "print alert"
     print "%s : %s" % (graceid, alert)
 
 def parseAlert( queue, queueByGraceID, alert, t0, config ):
@@ -23,19 +25,20 @@ def parseAlert( queue, queueByGraceID, alert, t0, config ):
 
     ### generate the tasks needed
     ### we print the alert twice to ensure the QueueItem works as expected with multiple Tasks
-    taskA = Task(  5.0, printAlert, alert=alert )
-    taskB = Task( 10.0, printAlert, alert=alert )
+    taskA = Task(  5.0, printAlert, graceid, alert=alert )
+    taskB = Task( 10.0, printAlert, graceid, alert=alert )
 
     ### generate the Item which houses the tasks
-    item = QueueItem( graceid, t0, [taskA, taskB] )
+    item = QueueItem( t0, [taskA, taskB] )
 
     ### add the item to the queue
     queue.insert( item )
 
     ### add the item to the queue for this specific graceID
-    if not queueByGraceID.has_key(graceid):
-        queueByGraceID[graceid] = SortedQueue()
-    queueByGraceID[graceid].insert( item )
+    if hasattr(item, 'graceid'): ### item must have this attribute for us to add it to queueByGraceID
+        if not queueByGraceID.has_key(graceid):
+            queueByGraceID[graceid] = SortedQueue()
+        queueByGraceID[graceid].insert( item )
 
     return 0 ### return the number of *new* complete items that are now in the queue
 
@@ -188,7 +191,7 @@ class QueueItem(object):
                 self.completedTasks.append( task ) ### mark as completed
             else:
                 break
-        self.complete = len(tasks)==0 ### only complete when there are no remaining tasks
+        self.complete = len(self.tasks)==0 ### only complete when there are no remaining tasks
 
     def add(self, newTasks):
         """
@@ -197,10 +200,10 @@ class QueueItem(object):
         if not hasattr( newTasks, "__iter__"):
             newTasks = [newTasks]
         for task in newTasks:
-            if not issubclass(task, Task):
+            if not issubclass(type(task), Task):
                 raise ValueError("each element of tasks must be an instance of ligo.lvalert.lvalertMPutils.Task")
-            task.setEpiration( t0 )
-            self.tasks.append( newTask )
+            task.setExpiration( self.t0 )
+            self.tasks.append( task )
         self.sortTasks() ### ensure tasks are sorted
 
     def remove(self, taskName):

@@ -31,7 +31,7 @@ from M2Crypto.SSL import Context
 import multiprocessing
 
 ### import the module containing the interactiveQueue
-from ligo.lvalert import interactiveQueue as iq
+from ligoMP.lvalert import interactiveQueue as iq
 
 # pubsub import must come first because it overloads part of the
 # StanzaProcessor class
@@ -303,8 +303,7 @@ if opts.config_file:
 
     for mp_child_name in cp.sections(): ### sections are separate processes
         ### extract arguments
-        childConfig = ConfigParser.ConfigParser()
-        childConfig.read(cp.get(mp_child_name, "childConfig"))
+        childConfig = cp.get(mp_child_name, "childConfig")
 
         if cp.has_option(mp_child_name, "verbose"):
             verbose = cp.getboolean(mp_child_name, "verbose")
