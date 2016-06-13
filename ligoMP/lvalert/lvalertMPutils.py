@@ -14,8 +14,8 @@ def printAlert( graceid, alert="blah", verbose=False ):
     an example action that we trigger off of an alert
     """
     if verbose:
-        print "print alert"
-    print "%s : %s" % (graceid, alert)
+        print "  print alert"
+    print "    %s : %s" % (graceid, alert)
 
 def parseAlert( queue, queueByGraceID, alert, t0, config ):
     """
