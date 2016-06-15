@@ -1,0 +1,97 @@
+#!/usr/bin/env python
+usage = "lvalert_commandMP [--options] cmd"
+description = "an example of how we can send commands to running instances of lvalert_listenMP. This works with process_type=test"
+author = "reed.essick@ligo.org"
+
+#-------------------------------------------------
+
+import json
+import subprocess as sp
+
+from argparse import ArgumentParser
+
+#-------------------------------------------------
+
+parser = ArgumentParser(usage=usage, description=description)
+
+# known commands
+parser.add_argument('command', choices=['checkpoint', 'kill'], help='checkpoint or kill')
+
+# username and password
+parser.add_argument("--username",
+                    action="store",
+                    type=str,
+                    default="", 
+                    help="the username of the publisher or listener" 
+                   )
+parser.add_argument("--password",
+                    action="store",
+                    type=str,
+                    default="", 
+                    help="the password of the publisher or listener" 
+                   )
+parser.add_argument("--server",
+                    action="store",
+                    type=str,
+                    default="lvalert.cgca.uwm.edu", 
+                    help="the pubsub server" 
+                   )
+parser.add_argument("--resource",
+                    action="store",
+                    type=str,
+                    default="sender", 
+                    help="resource to use in JID" 
+                   )
+
+# access information about root nodes
+parser.add_argument("--node",
+                    action="store",
+                    type=str,
+                    default=None, 
+                    help="name of the node on the pubsub server" 
+                   )
+
+# debugging options
+parser.add_argument("--verbose",
+                    action="store_true",
+                    default=False, 
+                    help="be verbose as you process the request" 
+                   )
+parser.add_argument("--debug",
+                    action="store_true",
+                    default=False, 
+                    help="should  print out lots of information" 
+                   )
+
+# timeout attempts
+parser.add_argument("--max_attempts",
+                    action="store_true",\
+                    default=10, 
+                    help="max number of timeouts allowed" 
+                   )
+
+# version
+parser.add_argument("--version", 
+                    action="store_true",
+                    default=False, 
+                    help="display version information"
+                   )
+
+args = parser.parse_args()
+
+#-------------------------------------------------
+
+if   args.command == "checkpoint":
+    alert = {'uid':None,
+             'command':'checkpoint'
+            }
+    raise NotImplementedError("write checkpoint command message")
+
+elif args.command == "kill":
+    alert = {'uid':None,
+             'command':'kill'
+            }
+    raise NotImplementedError("write kill command message")
+
+else:
+    raise NotImplementedError("cmd=%s not understood"%(args.command))
