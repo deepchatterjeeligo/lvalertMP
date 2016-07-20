@@ -12,6 +12,11 @@ from argparse import ArgumentParser
 
 #-------------------------------------------------
 
+def send( ):
+    raise NotImplementedError('send a dictionary as a json formatted string')
+
+#-------------------------------------------------
+
 parser = ArgumentParser(usage=usage, description=description)
 
 # known commands

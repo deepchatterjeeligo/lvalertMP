@@ -37,8 +37,8 @@ def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxCo
     elif process_type=="event_supervisor":
         from event_supervisor_utils import parseAlert
 
-    elif process_type=="approval_processor":
-        from approval_processor_utils import parseAlert
+    elif process_type=="approval_processorMP":
+        from approval_processorMPutils import parseAlert
 
     else:
         raise ValueError("process_type=%s not understood"%process_type)
