@@ -151,6 +151,11 @@ Furthermore, \SortedQueue supports a few basic \texttt{list} manipulations and q
             \item{a Python \texttt{list} which stores the \QueueItem instances. \SortedQueue orders the elements of this \texttt{list} and provides some high level interface functionality to manipulate them.}
         \end{itemize}
          }
+    \item{complete [\texttt{int}]
+        \begin{itemize}
+            \item{a counter for how many completed \QueueItem instances live in \texttt{queue}. This is managed internally for \textit{insert}, \textit{pop}, and \textit{clean}. However, external processes modifying \QueueItem instances directly should update this attribute themselves. \textit{setComplete} traverses \texttt{queue} to determine \texttt{complete} in case it is believed that it may be inaccurate.}
+        \end{itemize}
+         }
 \end{itemize}
 
 \noindent
@@ -185,6 +190,11 @@ Furthermore, \SortedQueue supports a few basic \texttt{list} manipulations and q
     \item{clean()
         \begin{itemize}
             \item{removes all \QueueItem instances marked as \textit{complete} from \textit{queue}. This allows us to simply modify an attribute of a \QueueItem upon execution or during \parseAlert (\S\ref{sec: parseAlert}) and let the \SortedQueue clean up all completed items periodically.}
+        \end{itemize}
+         }
+    \item{setComplet()
+        \begin{itemize}
+            \item{traverses \texttt{queue} to determine and update \texttt{complete}.}
         \end{itemize}
          }
 \end{itemize}
@@ -485,11 +495,7 @@ Also, this must remove any newly complted \QueueItem instances from \textit{queu
 \textit{returns}
 
 \begin{itemize}
-    \item{dCompleted [\texttt{int}]
-        \begin{itemize}
-            \item{the change in the number of \QueueItem instances marked \textit{complete} in \textit{queue}.}
-        \end{itemize}
-         }
+    \item{doesn't matter; it isn't captured within \interactiveQueue}
 \end{itemize}
 
 \noindent
