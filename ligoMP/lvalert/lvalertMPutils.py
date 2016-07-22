@@ -55,6 +55,7 @@ class SortedQueue(object):
 
     def __init__(self):
         self.queue = []
+        self.complete = 0
 
     def __len__(self):
         return len(self.queue)
@@ -81,12 +82,15 @@ class SortedQueue(object):
                 break
         else:
             self.queue.append( newItem )
+        self.complete += newItem.complete
 
     def pop(self, ind=0):
         """
         removes and returns the item stored at ind in the queue
         """
-        return self.queue.pop(ind)
+        item = self.queue.pop(ind)
+        self.complete -= item.complete
+        return item
 
     def clean(self):
         """
@@ -96,7 +100,16 @@ class SortedQueue(object):
         remove.reverse() ### start from the back so we don't mess up any indecies
         for ind in remove:
             queue.pop(ind) ### remove this item
+        self.complete = 0
 
+    def setComplete(self):
+        """
+        iterates over self.queue to determine the number of completed tasks
+
+        this should NOT be necessary as long as queue is properly managed externally
+        """
+        self.complete = sum([item.complete for item in self.queue])
+        
 #-------------------------------------------------
 
 class Task(object):
@@ -173,6 +186,14 @@ class QueueItem(object):
         else:
             self.expiration = -infty
 
+    def setExpiration(self, t0):
+        '''
+        updates the expiration of all tasks as well as of the QueueItem itself.
+        '''
+        for task in self.tasks:
+            task.setExpiration(t0) ### update expiration of each task
+        self.sortTasks() ### sorting tasks in the QueueItem. This automatically updates self.expiration
+
     def hasExpired(self):
         """
         check whether the next task has expired
@@ -220,6 +241,3 @@ class QueueItem(object):
                 self.expiration = -np.infty
         else:
             raise KeyError('could not find a task with name=%s'%(taskName))
-        
-#---------------------------------------------------------------------------------------------------
-

@@ -46,7 +46,6 @@ def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxCo
     ### set up queue
     queue = utils.SortedQueue() ### instantiate the queue
     queueByGraceID = {} ### hold shorter SortedQueue's, one for each GraceID
-    complete = 0
 
     ### iterate
     while True:
@@ -62,14 +61,13 @@ def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxCo
             e = json.loads(e)
 
             ### parse the message and insert the appropriate item into the queue
-            complete += parseAlert( queue, queueByGraceID, e, t0, config )
+            parseAlert( queue, queueByGraceID, e, t0, config )
 
         ### remove any completed tasks from the front of the queue
         while len(queue) and queue[0].complete: ### skip all things that are complete already
             item = queue.pop(0) ### note, we expect this to have been removed from queueByGraceID already
             if verobse:
                 print "ALREADY COMPLETE: "+item.description
-            complete -= 1
 
         ### iterate through queue and check for expired things...
         if len(queue):
@@ -103,9 +101,8 @@ def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxCo
                queueByGraceID.pop(graceid) ### remove this key from the dictionary
  
         ### check to see if we have too many complete processes in the queue
-        if complete > min(len(queue)*maxFrac, maxComplete):
+        if queue.complete > min(len(queue)*maxFrac, maxComplete):
             queue.clean()
-            complete = 0
  
         ### sleep if needed
         wait = (start+sleep)-time.time() 
