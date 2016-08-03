@@ -102,6 +102,13 @@ class SortedQueue(object):
             queue.pop(ind) ### remove this item
         self.complete = 0
 
+    def resort(self):
+        """
+        sorts all items in case there's been modifications
+        Hopefully, this won't be needed but we provide it just in case
+        """
+        self.queue.sort(key=lambda item: item.expiration)
+
     def setComplete(self):
         """
         iterates over self.queue to determine the number of completed tasks
