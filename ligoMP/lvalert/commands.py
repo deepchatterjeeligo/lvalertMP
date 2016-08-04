@@ -9,6 +9,8 @@ author = "reed.essick@ligo.org"
 
 import lvalertMPutils as utils
 
+from numpy import infty
+
 import json 
 
 import types ### needed to build dictionary to reference commands by name
@@ -35,9 +37,13 @@ class CommandTask(utils.Task):
     def __init__(self, queue, queueByGraceID, **kwargs ):
         self.queue = queue
         self.queueByGraceID = queueByGraceID
-        super(CommandTask, self).__init__(0, getattr(self, self.name), **kwargs) ### lookup function handle automatically using self.name
+        if kwargs.has_key('timeout'): ### if this is supplied, we use it
+            timeout = kwargs.pop('timeout') ### remove it from kwargs to prevent possible confusion
+        else:
+            timeout = -infty ### default is to do things ASAP
+        super(CommandTask, self).__init__(timeout, getattr(self, self.name), **kwargs) ### lookup function handle automatically using self.name
 
-    def command(self, verbose=False, ):
+    def command(self, verbose=False, **kwargs):
         pass
 
 #------------------------
@@ -56,7 +62,7 @@ class RaiseExceptionTask(CommandTask):
     name = 'raiseException'
     description = 'raises a custom made exception'
 
-    def raiseException(self, verbose=False ):
+    def raiseException(self, verbose=False, **kwargs):
         raise NotImplementedError
 
 #------------------------
@@ -75,7 +81,7 @@ class RaiseWarningTask(CommandTask):
     name = 'raiseWarning'
     description = 'raises a custom made warning'
 
-    def raiseWarning(self, verbose=False ):
+    def raiseWarning(self, verbose=False, **kwargs):
         raise NotImplementedError
 
 #------------------------
@@ -94,7 +100,7 @@ class ClearQueueTask(CommandTask):
     name = 'clearQueue'
     description = 'clears the queue'
 
-    def clearQueue(self, verbose=False ):
+    def clearQueue(self, verbose=False, **kwargs):
         raise NotImplementedError
 
 #------------------------
@@ -113,7 +119,7 @@ class CheckpointQueueTask(CommandTask):
     name = 'checkpointQueue'
     description = 'writes a representation of the queue to disk'
 
-    def checkpointQueue(self, verbose=False ):
+    def checkpointQueue(self, verbose=False, **kwargs):
         raise NotImplementedError
 
 #------------------------
@@ -132,7 +138,7 @@ class LoadQueueTask(CommandTask):
     name = 'loadQueue'
     description = 'loads a representation of the queue from disk'
 
-    def loadQueue(self, verbose=False ):
+    def loadQueue(self, verbose=False, **kwargs):
         raise NotImplementedError
 
 #------------------------
@@ -151,7 +157,7 @@ class PrintMessageTask(CommandTask):
     name = 'printMessage'
     description = 'prints a message to stdout'
 
-    def printMessage(self, verbose=False ):
+    def printMessage(self, verbose=False, **kwargs):
         raise NotImplementedError
 
 #-------------------------------------------------
