@@ -9,41 +9,6 @@ import time
 
 #---------------------------------------------------------------------------------------------------
 
-def printAlert( graceid, alert="blah", verbose=False ):
-    """
-    an example action that we trigger off of an alert
-    """
-    if verbose:
-        print "  print alert"
-    print "    %s : %s" % (graceid, alert)
-
-def parseAlert( queue, queueByGraceID, alert, t0, config ):
-    """
-    figures out what type of action needs to be taken and modifies SortedQueue as needed
-    """
-    graceid = alert['uid']
-
-    ### generate the tasks needed
-    ### we print the alert twice to ensure the QueueItem works as expected with multiple Tasks
-    taskA = Task(  5.0, printAlert, graceid, alert=alert )
-    taskB = Task( 10.0, printAlert, graceid, alert=alert )
-
-    ### generate the Item which houses the tasks
-    item = QueueItem( t0, [taskA, taskB] )
-
-    ### add the item to the queue
-    queue.insert( item )
-
-    ### add the item to the queue for this specific graceID
-    if hasattr(item, 'graceid'): ### item must have this attribute for us to add it to queueByGraceID
-        if not queueByGraceID.has_key(graceid):
-            queueByGraceID[graceid] = SortedQueue()
-        queueByGraceID[graceid].insert( item )
-
-    return 0 ### return the number of *new* complete items that are now in the queue
-
-#---------------------------------------------------------------------------------------------------
-
 class SortedQueue(object):
     """
     an object representing a sorted Queue

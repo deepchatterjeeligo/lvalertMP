@@ -32,7 +32,7 @@ def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxCo
         print "initializing process_type : %s"%process_type
 
     if process_type=="test":
-        from lvalertMPutils import parseAlert
+        from parseAlert import parseAlert
 
     elif process_type=="event_supervisor":
         from event_supervisor_utils import parseAlert
