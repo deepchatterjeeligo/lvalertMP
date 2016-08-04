@@ -165,10 +165,7 @@ class Command:
     '''
     name = 'command'
 
-    def __init__(self, queue, queueByGraceID, t0, command_type='command', **kwargs):
-        self.queue = queue
-        self.queueByGraceID = queueByGraceID
-        self.t0 = t0
+    def __init__(self, command_type='command', **kwargs):
         self.data = { 'uid'        : 'command',
                       'alert_type' : command_type,
                       'object'     : kwargs,
@@ -183,7 +180,7 @@ class Command:
     def write(self):
         return json.dumps(self.data)
 
-    def genQueueItems(self):
+    def genQueueItems(self, queue, queueByGraceID, t0):
         '''
         defines a list of QueueItems that need to be added to the queue
         uses automatic lookup via qid to identify which QueueItem must be generated based on self.name
@@ -284,10 +281,10 @@ def parseCommand( queue, queueByGraceID, alert, t0):
     if alert['uid'] != 'command':
         raise ValueError('I only know how to parse alerts with uid="command"')
 
-    cmd = cid[alert['alert_type']](queue, queueByGraceID, t0) ### instantiate the Command object
+    cmd = cid[alert['alert_type']]() ### instantiate the Command object
     cmd.parse( alert ) ### parse the alert message
 
-    for item in cmd.genQueueItems(): ### add items to the queue
+    for item in cmd.genQueueItems(queue, queueByGraceID, t0): ### add items to the queue
         queue.insert( item )
         if item.hasattr('graceid'):
             queueByGraceID[item.graceid].insert( item )
