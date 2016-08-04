@@ -22,8 +22,8 @@ class CommandQueueItem(utils.QueueItem):
     '''
     name = 'command'
     description = 'parent of all command queue items. Implements automatic generation of associated Tasks, etc'
-    def __init__(self, t0, **kwargs):
-        tasks = [ tid[self.name](**kwargs) ] ### look up tasks automatically via name attribute
+    def __init__(self, t0, queue, queueByGraceID, **kwargs):
+        tasks = [ tid[self.name](queue, queueByGraceID, **kwargs) ] ### look up tasks automatically via name attribute
         super(CommandQueueItem, self).__init__(t0, tasks)
 
 class CommandTask(utils.Task):
@@ -32,7 +32,9 @@ class CommandTask(utils.Task):
     '''
     name = 'command'
     description = "parent of all command tasks"
-    def __init__(self, **kwargs ):
+    def __init__(self, queue, queueByGraceID, **kwargs ):
+        self.queue = queue
+        self.queueByGraceID = queueByGraceID
         super(CommandTask, self).__init__(0, getattr(self, self.name), **kwargs) ### lookup function handle automatically using self.name
 
     def command(self, verbose=False, ):
@@ -163,7 +165,10 @@ class Command:
     '''
     name = 'command'
 
-    def __init__(self, command_type='command', **kwargs):
+    def __init__(self, queue, queueByGraceID, t0, command_type='command', **kwargs):
+        self.queue = queue
+        self.queueByGraceID = queueByGraceID
+        self.t0 = t0
         self.data = { 'uid'        : 'command',
                       'alert_type' : command_type,
                       'object'     : kwargs,
@@ -183,7 +188,7 @@ class Command:
         defines a list of QueueItems that need to be added to the queue
         uses automatic lookup via qid to identify which QueueItem must be generated based on self.name
         '''
-        return [ qid[self.name](t0, **self.data['object']) ] ### look up the QueueItem via qid and self.name, then call the __init__ as needed
+        return [ qid[self.name](t0, queue, queueByGraceID, **self.data['object']) ] ### look up the QueueItem via qid and self.name, then call the __init__ as needed
 
 #------------------------
 
@@ -271,7 +276,7 @@ tid.pop('command') ### get rid of parent class
 # parseCommand
 #-------------------------------------------------
 
-def parseCommand( queue, queueByGraceID, alert, t0, config ):
+def parseCommand( queue, queueByGraceID, alert, t0):
     '''
     a doppelganger for parseAlert that focuses on commands.
     this should be called from within parseAlert as needed
@@ -279,7 +284,7 @@ def parseCommand( queue, queueByGraceID, alert, t0, config ):
     if alert['uid'] != 'command':
         raise ValueError('I only know how to parse alerts with uid="command"')
 
-    cmd = cid[alert['alert_type']]() ### instantiate the Command object
+    cmd = cid[alert['alert_type']](queue, queueByGraceID, t0) ### instantiate the Command object
     cmd.parse( alert ) ### parse the alert message
 
     for item in cmd.genQueueItems(): ### add items to the queue
