@@ -20,20 +20,24 @@ import types ### needed to build dictionary to reference commands by name
 #-------------------------------------------------
 class CommandQueueItem(utils.QueueItem):
     '''
-    FILL ME IN
+    A parent QueueItem for Commands. This class handles automatic lookup and Task instantiation.
+    Most if not all children will simply overwrite the name and description attributes.
     '''
     name = 'command'
     description = 'parent of all command queue items. Implements automatic generation of associated Tasks, etc'
+
     def __init__(self, t0, queue, queueByGraceID, **kwargs):
         tasks = [ tid[self.name](queue, queueByGraceID, **kwargs) ] ### look up tasks automatically via name attribute
         super(CommandQueueItem, self).__init__(t0, tasks)
 
 class CommandTask(utils.Task):
     '''
-    FILL ME IN
+    A parent Task for commands. This class handles automatic identification of functionhandle using self.name. 
+    Most children will simply overwrite name and description attributes and define a new method for their actual execution.
     '''
     name = 'command'
     description = "parent of all command tasks"
+
     def __init__(self, queue, queueByGraceID, **kwargs ):
         self.queue = queue
         self.queueByGraceID = queueByGraceID
@@ -42,6 +46,20 @@ class CommandTask(utils.Task):
         else:
             timeout = -infty ### default is to do things ASAP
         super(CommandTask, self).__init__(timeout, getattr(self, self.name), **kwargs) ### lookup function handle automatically using self.name
+        self.checkKWargs() ### ensure we've set this up correctly. Should be redundant if we construct through Command.genQueueItems. 
+                           ### supported in case we create QueueItems directly.
+
+    def checkKWargs(self):
+        '''
+        checks to make sure we have all the kwargs we need and none of the ones we forbid
+        if there's a problem, we raise a KeyError
+        '''
+        for kwarg in cid[self.name].required_kwargs: ### check to make sure we have everyting we need. looks up lists within corresponding Command object
+            if not self.kwargs.has_key(kwarg):
+                raise KeyError('CommandTask=%s is missing required kwarg=%s'%(self.name, kwarg))
+        for kwarg in cid[self.name].forbidden_kwargs: ### check to make sure we don't have anything forbidden. looks up list within corresopnding Command object
+            if self.kwargs.has_key(kwarg):
+                raise KeyError('CommandTask=%s contains forbidden kwarg=%s'%(self.name, kwarg))
 
     def command(self, verbose=False, *args, **kwargs):
         pass
@@ -50,14 +68,14 @@ class CommandTask(utils.Task):
 
 class RaiseExceptionItem(CommandQueueItem):
     '''
-    FILL ME IN
+    QueueItem that raises an exception (ie: kills the process, which should make interactiveQueue fall over)
     '''
     name = 'raiseException'
     description = 'raises a custom made exception'
 
 class RaiseExceptionTask(CommandTask):
     '''
-    FILL ME IN
+    Task that raises an exception( ie: kills the process, which should make interactiveQUeue fall over)
     '''
     name = 'raiseException'
     description = 'raises a custom made exception'
@@ -69,14 +87,14 @@ class RaiseExceptionTask(CommandTask):
 
 class RaiseWarningItem(CommandQueueItem):
     '''
-    FILL ME IN
+    QueueItem that raises a warning
     '''
     name = 'raiseWarning'
     description = 'raises a custom made warning'
 
 class RaiseWarningTask(CommandTask):
     '''
-    FILL ME IN
+    Task that raises a warning
     '''
     name = 'raiseWarning'
     description = 'raises a custom made warning'
@@ -88,14 +106,14 @@ class RaiseWarningTask(CommandTask):
 
 class ClearQueueItem(CommandQueueItem):
     '''
-    FILL ME IN
+    QueueItem that empties the queue
     '''
     name = 'clearQueue'
     description = 'clears the queue'
 
 class ClearQueueTask(CommandTask):
     '''
-    FILL ME IN
+    Task that empties the queue
     '''
     name = 'clearQueue'
     description = 'clears the queue'
@@ -107,14 +125,14 @@ class ClearQueueTask(CommandTask):
 
 class CheckpointQueueItem(CommandQueueItem):
     '''
-    FILL ME IN
+    QueueItem that saves a representation of the queue to disk
     '''
     name = 'checkpointQueue'
     description = 'writes a representation of the queue to disk'
 
 class CheckpointQueueTask(CommandTask):
     '''
-    FILL ME IN
+    Task that saves a representation of the queue to disk
     '''
     name = 'checkpointQueue'
     description = 'writes a representation of the queue to disk'
@@ -126,14 +144,14 @@ class CheckpointQueueTask(CommandTask):
 
 class LoadQueueItem(CommandQueueItem):
     '''
-    FILL ME IN
+    QueueItem that loads a representation of the queue from disk
     '''
     name = 'loadQueue'
     description = 'loads a representation of the queue from disk'
 
 class LoadQueueTask(CommandTask):
     '''
-    FILL ME IN
+    Task that loads a representation of the queue from disk
     '''
     name = 'loadQueue'
     description = 'loads a representation of the queue from disk'
@@ -145,14 +163,14 @@ class LoadQueueTask(CommandTask):
 
 class PrintMessageItem(CommandQueueItem):
     '''
-    FILL ME IN
+    QueueItem that prints a message
     '''
     name = 'printMessage'
     description = 'prints a message to stdout'
 
 class PrintMessageTask(CommandTask):
     '''
-    FILL ME IN
+    Task that prints a message
     '''
     name = 'printMessage'
     description = 'prints a message to stdout'
@@ -169,7 +187,9 @@ class Command:
     an object based representation of Commands. 
     Each specific command should inherit from from this and provide the following functionality
     '''
-    name = 'command'
+    name             = 'command'
+    required_kwargs  = [] ### this must be sync'd with what's needed in the corresponding CommandTask. That is not managed automatically and we have to enusure things match up by hand
+    forbidden_kwargs = []
 
     def __init__(self, command_type='command', **kwargs):
         self.data = { 'uid'        : 'command',
@@ -177,13 +197,36 @@ class Command:
                       'object'     : kwargs,
                     }
 
+    def checkObject(self):
+        '''
+        ensures that all of the required kwargs are present in self.data['object']
+        if something is missing, we raise a KeyError
+        also checks to make sure that no forbidden_kwarg is present.
+        if one is, we raise a KeyError
+        '''
+        kwargs = self.data['object']
+        for kwarg in self.required_kwargs: ### check to make sure we have everyting we need
+            if not kwargs.has_key(kwarg):
+                raise KeyError('Command=%s is missing required kwarg=%s'%(self.name, kwarg))
+        for kwarg in self.forbidden_kwargs: ### check to make sure we don't have anything forbidden
+            if kwargs.has_key(kwarg):
+                raise KeyError('Command=%s contains forbidden kwarg=%s'%(self.name, kwarg))
+
     def parse(self, alert):
+        '''
+        parse a json dictionary from an alert and store data locally
+        '''
         if alert['alert_type']==self.name:
             self.data = alert
         else:
             raise ValueError('cannot parse an command with alert_type=%s within command=%s'%(alert['alert_type'], self.name))
+        self.checkObject() ### ensure we have all the kwargs we need
 
     def write(self):
+        '''
+        write a json string that can be sent as an alert
+        '''
+        self.checkObject() ### ensure we have all the kwargs we need
         return json.dumps(self.data)
 
     def genQueueItems(self, queue, queueByGraceID, t0):
@@ -191,15 +234,19 @@ class Command:
         defines a list of QueueItems that need to be added to the queue
         uses automatic lookup via qid to identify which QueueItem must be generated based on self.name
         '''
+        self.checkObject() ### ensure we have all the kwargs we need
         return [ qid[self.name](t0, queue, queueByGraceID, **self.data['object']) ] ### look up the QueueItem via qid and self.name, then call the __init__ as needed
 
 #------------------------
 
 class RaiseException(Command):
     '''
-    FILL ME IN
+    raise an Exception
     '''
-    name = 'raiseException'
+    name             = 'raiseException'
+    required_kwargs  = []
+    forbidden_kwargs = []
+
     def __init__(self, **kwargs):
         super(RaiseException, self).__init__(command_type=self.name, **kwargs)
 
@@ -207,9 +254,12 @@ class RaiseException(Command):
 
 class RaiseWarning(Command):
     '''
-    FILL ME IN
+    raise a Warning
     '''
-    name = 'raiseWarning'
+    name             = 'raiseWarning'
+    required_kwargs  = []
+    forbidden_kwargs = []
+
     def __init__(self, **kwargs):
         super(RaiseWarning, self).__init__(command_type=self.name, **kwargs)
 
@@ -217,9 +267,12 @@ class RaiseWarning(Command):
 
 class ClearQueue(Command):
     '''
-    FILL ME IN
+    empty the queue
     '''
-    name = 'clearQueue'
+    name             = 'clearQueue'
+    required_kwargs  = []
+    forbidden_kwargs = []
+
     def __init__(self, **kwargs):
         super(ClearQueue, self).__init__(command_type=self.name, **kwargs)
 
@@ -227,17 +280,23 @@ class ClearQueue(Command):
 
 class CheckpointQueue(Command):
     '''
-    FILL ME IN
+    save a representation of the queue to disk
     '''
-    name = 'checkpointQueue'
+    name             = 'checkpointQueue'
+    required_kwargs  = ['filename']
+    forbidden_kwargs = []
+
     def __init__(self, **kwargs):
         super(CheckpointQueue, self).__init__(command_type=self.name, **kwargs)
 
 class LoadQueue(Command):
     '''
-    FILL ME IN
+    load a representation fo the queue from disk
     '''
-    name = 'loadQueue'
+    name             = 'loadQueue'
+    required_kwargs  = ['filename']
+    forbidden_kwargs = []
+
     def __init__(self, **kwargs):
         super(LoadQueue, self).__init__(command_type=self.name, **kwargs)
 
@@ -245,9 +304,12 @@ class LoadQueue(Command):
 
 class PrintMessage(Command):
     '''
-    FILL ME IN
+    print a message
     '''
-    name = 'printMessage'
+    name             = 'printMessage'
+    required_kwargs  = ['message']
+    forbidden_kwargs = []
+
     def __init__(self, **kwargs):
         super(PrintMessage, self).__init__(command_type=self.name, **kwargs)
 
