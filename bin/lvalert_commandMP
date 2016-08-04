@@ -70,6 +70,7 @@ def parseCommandLine():
     parser.add_option("-l", "--library", default="ligoMP", type='string', help='the library from which we import commands.py. Currently, only --library=ligoMP is supported')
 
     # options about command key,val pairs
+    parser.add_option('', '--show-commands', action='store_true', default=False, help='print the known commands')
     parser.add_option('', '--show-kwargs', action='store_true', default=False, help='print the required and forbidden kwargs for this command')
 
     # username and password
@@ -91,7 +92,7 @@ def parseCommandLine():
     opts, args = parser.parse_args()
 
     ### ensure we have --node defined
-    if not (opts.node or opts.show_kwargs): ### we don't require a node if we're just showing kwargs
+    if not (opts.node or opts.show_commands or opts.show_kwargs): ### we don't require a node if we're just showing commands or kwargs
         opts.node = raw_input('--node=')
 
     cmd  = None
@@ -110,7 +111,7 @@ def parseCommandLine():
                 raise ValueError('please supply exactly one command\n%s'%usage)
             cmd = arg
 
-    if not cmd: ### this was never set
+    if not (cmd or opts.show_commands): ### this was never set and we aren't just showing commands
         raise ValueError('please supply exactly one command\n%s'%usage)
 
     return opts, data, cmd
@@ -128,14 +129,19 @@ if __name__=="__main__":
     else:
         raise ValueError("I don't know how to import commands for --library=%s"%opts.libarary)
 
+    if opts.show_commands: ### print the known commands
+        print "known commands are :\n\t%s"%("\n\t".join(sorted(commands.cid.keys())))
+        import sys
+        sys.exit(0)
+        
+    if opts.show_kwargs: ### print the required and forbidden kwargs
+        print "cmd=%s\n  requires\n\t%s\n  forbids\n\t%s"%(cmd, "\n\t".join(sorted(commands.cid[cmd].required_kwargs)), "\n\t".join(sorted(commands.cid[cmd].forbidden_kwargs)))
+        import sys
+        sys.exit(0)
+
     ### ensure we know how to actually set up this command
     if not commands.cid.has_key(cmd):
         raise ValueError( "I do not know how to format (or interpret) cmd=%s\nKnown commands are : %s"%( cmd, ", ".join( sorted(commands.cid.keys()) ) ) )
-
-    if opts.show_kwargs: ### print the required and forbidden kwargs
-        import sys
-        print "cmd=%s\n  requires\n\t%s\n  forbids\n\t%s"%(cmd, "\n\t".join(commands.cid[cmd].required_kwargs), "\n\t".join(commands.cid[cmd].forbidden_kwargs))
-        sys.exit(0)
 
     ### construct the object
     if opts.verbose:
