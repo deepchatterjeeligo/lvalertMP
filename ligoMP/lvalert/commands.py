@@ -286,7 +286,7 @@ def parseCommand( queue, queueByGraceID, alert, t0):
 
     for item in cmd.genQueueItems(queue, queueByGraceID, t0): ### add items to the queue
         queue.insert( item )
-        if item.hasattr('graceid'):
+        if hasattr(item, 'graceid'):
             queueByGraceID[item.graceid].insert( item )
 
     return 0 ### the number of new completed tasks in queue. 
