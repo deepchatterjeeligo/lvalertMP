@@ -81,7 +81,10 @@ class RaiseExceptionTask(CommandTask):
     description = 'raises a custom made exception'
 
     def raiseException(self, verbose=False, *args, **kwargs):
-        raise NotImplementedError
+        '''
+        raises a RuntimeError
+        '''
+        raise RuntimeError('raiseExeption command received')
 
 #------------------------
 
@@ -100,7 +103,10 @@ class RaiseWarningTask(CommandTask):
     description = 'raises a custom made warning'
 
     def raiseWarning(self, verbose=False, *args, **kwargs):
-        raise NotImplementedError
+        '''
+        raises a RuntimeWarning
+        '''
+        raise RuntimeWarning('raiseWarning command received')
 
 #------------------------
 
@@ -119,7 +125,43 @@ class ClearQueueTask(CommandTask):
     description = 'clears the queue'
 
     def clearQueue(self, verbose=False, *args, **kwargs):
-        raise NotImplementedError
+        '''
+        empties all QueueItems from the queue and from queueByGraceID
+        '''
+        while len(self.queue): ### empty queue
+            self.queue.pop()
+
+        for graceid in self.queueByGraceID.keys(): ### empty queueByGraceID
+            self.queueByGraceID.pop(graceid)
+        ### note, we don't need to add this back into the queueByGraceID because this Item doesn't have a graceid attribute
+
+#------------------------
+
+class ClearGraceIDTask(CommandQueueItem):
+    '''
+    QueueItem that empties queue of QueueItems associated with graceid
+    '''
+    name = "clearGraceID"
+    description = "clears queue of items corresponding to 'graceid'"
+
+class ClearGraceIDTask(CommandTask):
+    '''
+    Task that empties the queue of QueueItems associated with graceid
+    '''
+    name = "clearGraceID"
+    description = "clears queue of items corresponding to 'graceid'"
+
+    def clearGraceID(self, verbose=False, *args, **kwargs):
+        '''
+        empties all QueueItems associated with graceid (required kwarg) from queueByGraceID. 
+        Marks these as complete so they are ignored within queue.
+        '''
+        graceid = kwargs['graceid']
+        if queueByGraceID.has_key(graceid):
+            for item in queueByGraceID.pop(graceid): ### remove graceid from queueByGraceID
+                item.complete = True ### mark as complete
+                self.queue += 1 ### increment counter within global queue
+        ### note, we don't need to add this back into the queueByGraceID because this Item doesn't have a graceid attribute
 
 #------------------------
 
@@ -138,7 +180,16 @@ class CheckpointQueueTask(CommandTask):
     description = 'writes a representation of the queue to disk'
 
     def checkpointQueue(self, verbose=False, *args, **kwargs):
-        raise NotImplementedError
+        '''
+        writes a representation of queue into 'filename' (required kwarg)
+
+        WARNING: we may want to gzip or somehow compress the pickle files produced. We'd need to mirror this within loadQueue.
+        '''
+        import pickle
+        filename = kwargs['filename']
+        file_obj = open(filename, 'w')
+        pickle.dump( self.queue, file_obj ) 
+        file_obj.close()
 
 #------------------------
 
@@ -157,7 +208,25 @@ class LoadQueueTask(CommandTask):
     description = 'loads a representation of the queue from disk'
 
     def loadQueue(self, verbose=False, *args, **kwargs):
-        raise NotImplementedError
+        '''
+        loads a representation of queue from 'filename' (required kwarg)
+
+        WARNING: currently, this does not empty the queue first and only adds items from filename into existing SortedQueues
+        '''
+        ### load queue from pickle file
+        import pickle
+        filename = kwargs['filename']
+        file_obj = open(filename, 'r')
+        queue = pickle.load(file_obj)
+        file_obj.close()
+
+        ### iterate through queue and add it into self.queue and self.queueByGraceID
+        for item in queue:
+            self.queue.inset( item )
+            if hasattr(item, 'graceid'):
+                if not self.queueByGraceID.has_key(item.graceid): ### need to make a SortedQueue for this graceid
+                    self.queueByGraceID[item.graceid] = utils.SortedQueue()
+                self.queueByGraceID[item.graceid].insert( item )
 
 #------------------------
 
@@ -176,7 +245,10 @@ class PrintMessageTask(CommandTask):
     description = 'prints a message to stdout'
 
     def printMessage(self, verbose=False, *args, **kwargs):
-        raise NotImplementedError
+        '''
+        prints 'message' (required kwarg)
+        '''
+        print kwargs['message']
 
 #-------------------------------------------------
 # define representations of commands
@@ -275,6 +347,19 @@ class ClearQueue(Command):
 
     def __init__(self, **kwargs):
         super(ClearQueue, self).__init__(command_type=self.name, **kwargs)
+
+#------------------------
+
+class ClearGraceID(Command):
+    '''
+    empties the queue of all items associated with this GraceID
+    '''
+    name             = 'clearGraceID'
+    required_kwargs  = ['graceid']
+    forbidden_kwargs = []
+
+    def __init__(self, **kwargs):
+        super(ClearGraceID, self).__init__(command_type=self.name, **kwargs)
 
 #------------------------
 
