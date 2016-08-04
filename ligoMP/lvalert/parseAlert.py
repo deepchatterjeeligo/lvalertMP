@@ -5,7 +5,7 @@ author = "reed.essick@ligo.org"
 
 import lvalertMPutils as utils
 
-import commands
+from commands import parseCommand
 
 #-------------------------------------------------
 
@@ -26,7 +26,7 @@ def parseAlert( queue, queueByGraceID, alert, t0, config ):
     graceid = alert['uid']
 
     if graceid == 'command': ### this is a command!
-        return commands.parseCommand( queue, queueByGraceID, alert, t0, config ) ### delegate and return
+        return parseCommand( queue, queueByGraceID, alert, t0 ) ### delegate and return
        
     ### generate the tasks needed
     ### we print the alert twice to ensure the QueueItem works as expected with multiple Tasks
