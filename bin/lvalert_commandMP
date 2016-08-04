@@ -1,104 +1,146 @@
 #!/usr/bin/env python
-usage = "lvalert_commandMP [--options] cmd"
+usage = "lvalert_commandMP [--options] --node=NODE [key,val key,val ...] cmd"
 description = "an example of how we can send commands to running instances of lvalert_listenMP. This works with process_type=test"
 author = "reed.essick@ligo.org"
 
 #-------------------------------------------------
 
-import json
+import os
 import subprocess as sp
 
-from argparse import ArgumentParser
+import random
 
-from ligoMP.lvalert import commands
-
-#-------------------------------------------------
-
-def send( ):
-    raise NotImplementedError('send a dictionary as a json formatted string')
+from optparse import OptionParser
 
 #-------------------------------------------------
 
-parser = ArgumentParser(usage=usage, description=description)
+def generateTmpFilename( directory='.', suffix='.tmp', num=10, choices="a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 0 1 2 3 4 5 6 7 8 9".split() ):
+    return "%s/%s.json"%(directory, "".join(random.choose(choices) for _ in xrange(num)), suffix)
 
-# known commands
-parser.add_argument('command', choices=['checkpoint', 'kill'], help='checkpoint or kill')
+def send( string, node, username, password, server='lvalert.cgca.uwm.edu', resource='sender', max_attempts=10, verbose=False, debug=False ):
+    '''
+    sends a json string to an lvalert node
+    writes json string to a file and then cleans it up upon completion
+    '''
+    filename = generateTmpFilename()
+    if verbose:
+        print "    writing string into temporary file : %s"%filename
+    file_obj = open(filename, 'w')
+    file_obj.write( string )
+    file_obj.close()
 
-# username and password
-parser.add_argument("--username",
-                    action="store",
-                    type=str,
-                    default="", 
-                    help="the username of the publisher or listener" 
-                   )
-parser.add_argument("--password",
-                    action="store",
-                    type=str,
-                    default="", 
-                    help="the password of the publisher or listener" 
-                   )
-parser.add_argument("--server",
-                    action="store",
-                    type=str,
-                    default="lvalert.cgca.uwm.edu", 
-                    help="the pubsub server" 
-                   )
-parser.add_argument("--resource",
-                    action="store",
-                    type=str,
-                    default="sender", 
-                    help="resource to use in JID" 
-                   )
+    ### construct command line for lvalert_send
+    raise NotImplementedError('send a json formatted string to an lvalert node')
+    cmdLine = 'lvalert_send --username %(username)s --password %(password)s --server %(server)s --resource %(resource)s --node %(node)s --file %(file) --max_attemps %(retry)'%\
+        { 'username' : username,
+          'password' : password,
+          'server'   : server,
+          'resource' : resource,
+          'node'     : node,
+          'file'     : filename,
+          'retry'    : max_attempts,
+        }
+    if verbose:
+        cmdLine = cmdLine + " --verbose"
+    if debug:
+        cmdLine = cmdLine + " --debug"
 
-# access information about root nodes
-parser.add_argument("--node",
-                    action="store",
-                    type=str,
-                    default=None, 
-                    help="name of the node on the pubsub server" 
-                   )
+    ### submit lvalert_send command
+    if opts.verbose:
+        print "    sending via lvalert_send:\n        %s"%(cmdLine)
+    returncode = sp.Popen(cmdLine.split()).wait()
 
-# debugging options
-parser.add_argument("--verbose",
-                    action="store_true",
-                    default=False, 
-                    help="be verbose as you process the request" 
-                   )
-parser.add_argument("--debug",
-                    action="store_true",
-                    default=False, 
-                    help="should  print out lots of information" 
-                   )
+    if returncode: ### something failed within lvalert_send
+        raise RuntimeError('lvalert_send exited with returncode=%d\nPreserving temp file : %s for inspection'%(returncode, filename))
+    else:
+        os.remove(filename)
 
-# timeout attempts
-parser.add_argument("--max_attempts",
-                    action="store_true",\
-                    default=10, 
-                    help="max number of timeouts allowed" 
-                   )
+#------------------------
 
-# version
-parser.add_argument("--version", 
-                    action="store_true",
-                    default=False, 
-                    help="display version information"
-                   )
+def parseCommandLine():
+    '''
+    parses the command line
+    We write this specialty function because both OptionParser and ArgumentParser are not flexible enough for our needs (arbitrarily defined command line options) out of the box
+    '''
 
-args = parser.parse_args()
+    ### we have a few common options for which we use OptionParser
+    parser = OptionParser(usage=usage, description=description)
+
+    # library containing commands.py
+    parser.add_option("-l", "--library", default="ligoMP", type='string', help='the library from which we import commands.py. Currently, only --library=ligoMP is supported')
+
+    # username and password
+    parser.add_option('-a', "--username", default="", help="the username of the publisher or listener")
+    parser.add_option('-b', "--password", default="", help="the password of the publisher or listener")
+    parser.add_option('-s', "--server",   default="lvalert.cgca.uwm.edu", help="the pubsub server")
+    parser.add_option('-r', "--resource", default="sender", help="resource to use in JID")
+
+    # access information about root nodes
+    parser.add_option('-n', "--node", default=None, help="name of the node on the pubsub server")
+
+    # debugging options
+    parser.add_option('-v', "--verbose", action="store_true", default=False, help="be verbose as you process the request")
+    parser.add_option('-g', "--debug",   action="store_true", default=False, help="should print out lots of information")
+
+    # timeout attempts
+    parser.add_option('-m', "--max_attempts", default=10, help="max number of timeouts allowed")
+
+    opts, args = parser.parse_args()
+
+    ### ensure we have --node defined
+    if not opts.node:
+        opts.node = raw_input('--node=')
+
+    cmd  = None
+    data = {}
+    for arg in args:
+        try:
+            key, val = arg.split(',') ### try to parse as if it were a key,val pair
+            try: ### try to cast val as a float
+                val = float(val)
+            except: ### if this fails, we just leave it as a string
+                pass
+            finally:
+                data[key] = val ### add this to data
+        except:
+            if cmd: ### command is already defined
+                raise ValueError('please supply exactly one command\n%s'%usage)
+            cmd = arg
+
+    if not cmd: ### this was never set
+        raise ValueError('please supply exactly one command\n%s'%usage)
+
+    return opts, data, cmd
 
 #-------------------------------------------------
 
-if   args.command == "checkpoint":
-    alert = {'uid':None,
-             'command':'checkpoint'
-            }
-    raise NotImplementedError("write checkpoint command message")
+if __name__=="__main__":
+    ### parse the command line
+    opts, data, cmd = parseCommandLine()
 
-elif args.command == "kill":
-    alert = {'uid':None,
-             'command':'kill'
-            }
-    raise NotImplementedError("write kill command message")
+    ### import commands based on library option
+    ### we may make this even more flexible by using eval, but I'd like to avoid that if possible
+    if opts.library=='ligoMP':
+        from ligoMP.lvalert import commands
+    else:
+        raise ValueError("I don't know how to import commands for --library=%s"%opts.libarary)
 
-else:
-    raise NotImplementedError("cmd=%s not understood"%(args.command))
+    ### ensure we know how to actually set up this command
+    if not commands.cid.has_key(cmd):
+        raise ValueError( "I do not know how to format (or interpret) cmd=%s\nKnown commands are : %s"%( cmd, ", ".join( sorted(commands.cid.keys()) ) ) )
+
+    ### construct the object
+    if opts.verbose:
+        print 'constructing %s Command object with data:%s'%( cmd, "\n\t".join("%s\t: %s"%(key, str(data[key])) for key in sorted(data.keys())) )
+    cmdObj = commands.qid[cmd]( **data )
+
+    ### note: for what it's worth, we pass along any and all key,val pairs supplied at the command line. 
+    ### It is the responsibility of the CommandTask to ignore what it doesn't need and to set defaults if they are missing.
+
+    ### generate the json string
+    cmdStr = cmdObj.write()
+
+    ### send the json string
+    if opts.verbose:
+        print 'sending json string to node=%s\n%s'%(opts.node, cmdStr)
+    send( cmdStr, opts.node, opts.username, opts.password, server=opts.server, resource=opts.resource, max_attempts=opts.max_attempts, verbose=opts.verbose, debug=opts.debug )
