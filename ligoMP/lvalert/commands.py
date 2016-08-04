@@ -43,7 +43,7 @@ class CommandTask(utils.Task):
             timeout = -infty ### default is to do things ASAP
         super(CommandTask, self).__init__(timeout, getattr(self, self.name), **kwargs) ### lookup function handle automatically using self.name
 
-    def command(self, verbose=False, **kwargs):
+    def command(self, verbose=False, *args, **kwargs):
         pass
 
 #------------------------
@@ -62,7 +62,7 @@ class RaiseExceptionTask(CommandTask):
     name = 'raiseException'
     description = 'raises a custom made exception'
 
-    def raiseException(self, verbose=False, **kwargs):
+    def raiseException(self, verbose=False, *args, **kwargs):
         raise NotImplementedError
 
 #------------------------
@@ -81,7 +81,7 @@ class RaiseWarningTask(CommandTask):
     name = 'raiseWarning'
     description = 'raises a custom made warning'
 
-    def raiseWarning(self, verbose=False, **kwargs):
+    def raiseWarning(self, verbose=False, *args, **kwargs):
         raise NotImplementedError
 
 #------------------------
@@ -100,7 +100,7 @@ class ClearQueueTask(CommandTask):
     name = 'clearQueue'
     description = 'clears the queue'
 
-    def clearQueue(self, verbose=False, **kwargs):
+    def clearQueue(self, verbose=False, *args, **kwargs):
         raise NotImplementedError
 
 #------------------------
@@ -119,7 +119,7 @@ class CheckpointQueueTask(CommandTask):
     name = 'checkpointQueue'
     description = 'writes a representation of the queue to disk'
 
-    def checkpointQueue(self, verbose=False, **kwargs):
+    def checkpointQueue(self, verbose=False, *args, **kwargs):
         raise NotImplementedError
 
 #------------------------
@@ -138,7 +138,7 @@ class LoadQueueTask(CommandTask):
     name = 'loadQueue'
     description = 'loads a representation of the queue from disk'
 
-    def loadQueue(self, verbose=False, **kwargs):
+    def loadQueue(self, verbose=False, *args, **kwargs):
         raise NotImplementedError
 
 #------------------------
@@ -157,7 +157,7 @@ class PrintMessageTask(CommandTask):
     name = 'printMessage'
     description = 'prints a message to stdout'
 
-    def printMessage(self, verbose=False, **kwargs):
+    def printMessage(self, verbose=False, *args, **kwargs):
         raise NotImplementedError
 
 #-------------------------------------------------
