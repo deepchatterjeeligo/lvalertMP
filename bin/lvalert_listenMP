@@ -313,6 +313,8 @@ if opts.config_file:
             sleep = cp.getfloat(mp_child_name, "sleep")
         else:
             sleep = 0.1
+
+        ### parameters about garbage collection
         if cp.has_option(mp_child_name, "maxComplete"):
             maxComplete = cp.getint(mp_child_name, "maxComplete")
         else:
@@ -322,8 +324,27 @@ if opts.config_file:
         else:
             maxFrac = 0.5
 
-        proc, conn = fork( (iq.interactiveQueue, [childConfig, verbose, sleep, maxComplete, maxFrac]) ) ### the info we need to fork new instances
-        procs[mp_child_name] = (proc, conn) ### null pointers because we haven't started any new instances yet
+        ### parameters about warnings
+        if cp.has_option(mp_child_name, "warnThr"):
+            warnThr = cp.getfloat(mp_child_name, "warnThr")
+        else:
+            warnThr = 1e3
+        if cp.has_option(mp_child_name, "recipients"):
+            recipients = cp.get(mp_child_name, "recipients").split()
+        else:
+            recipients = []
+        if cp.has_option(mp_child_name, "warnDelay"):
+            warnDelay = cp.getfloat(mp_child_name, "warnDelay")
+        else:
+            warnDelay = 3600
+        if cp.has_option(mp_child_name, "maxWarn"):
+            maxWarn = cp.getint(mp_child_name, "maxWarn")
+        else:
+            maxWarn = 24
+
+        ### fork the process
+        proc, conn = fork( (iq.interactiveQueue, [childConfig, verbose, sleep, maxComplete, maxFrac, warnThr, recipients, warnDelay, maxWarn]) )
+        procs[mp_child_name] = (proc, conn)
 
         for node in cp.get(mp_child_name, "nodes").split(): ### iterate over nodes and add them to this process
             if actions.has_key(node):

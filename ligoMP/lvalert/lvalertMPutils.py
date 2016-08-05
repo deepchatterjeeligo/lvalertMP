@@ -5,7 +5,23 @@ author = "reed.essick@ligo.org"
 
 from numpy import infty
 
+import subprocess as sp
+
 import time
+
+#---------------------------------------------------------------------------------------------------
+
+def sendEmail( recipients, body, subject ):
+    """
+    a wrapper for the commands that send emails.
+    delegates to subprocess
+
+    raises an error if returncode != 0
+    """
+    proc = sp.Popen(["mail", "-s", subject, " ".join(recipients)], stdin=sp.PIPE)
+    out, err = proc.communicate(input=body)
+    if proc.returncode: ### there was an issue
+        raise RuntimeError('email failed to send\nstdout : %s\nstderr : %s'%(out, err))
 
 #---------------------------------------------------------------------------------------------------
 
