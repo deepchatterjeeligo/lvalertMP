@@ -18,7 +18,7 @@ def sendEmail( recipients, body, subject ):
 
     raises an error if returncode != 0
     """
-    proc = sp.Popen(["mail", "-s", subject, " ".join(recipients)], stdin=sp.PIPE)
+    proc = sp.Popen(["mail", "-s", subject, " ".join(recipients)], stdin=sp.PIPE, stdout=sp.PIPE, stderr=sp.PIPE)
     out, err = proc.communicate(input=body)
     if proc.returncode: ### there was an issue
         raise RuntimeError('email failed to send\nstdout : %s\nstderr : %s'%(out, err))
