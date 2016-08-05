@@ -135,7 +135,7 @@ if __name__=="__main__":
         sys.exit(0)
         
     if opts.show_kwargs: ### print the required and forbidden kwargs
-        print "cmd=%s\n  requires\n\t%s\n  forbids\n\t%s"%(cmd, "\n\t".join(sorted(commands.cid[cmd].required_kwargs)), "\n\t".join(sorted(commands.cid[cmd].forbidden_kwargs)))
+        print "cmd=%s\n  requires\n\t%s\n  forbids\n\t%s"%(cmd, "\n\t".join(sorted(commands.tid[cmd].required_kwargs)), "\n\t".join(sorted(commands.tid[cmd].forbidden_kwargs)))
         import sys
         sys.exit(0)
 

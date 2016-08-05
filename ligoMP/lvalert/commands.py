@@ -38,6 +38,9 @@ class CommandTask(utils.Task):
     name = 'command'
     description = "parent of all command tasks"
 
+    required_kwargs  = []
+    forbidden_kwargs = []
+
     def __init__(self, queue, queueByGraceID, **kwargs ):
         self.queue = queue
         self.queueByGraceID = queueByGraceID
@@ -54,10 +57,10 @@ class CommandTask(utils.Task):
         checks to make sure we have all the kwargs we need and none of the ones we forbid
         if there's a problem, we raise a KeyError
         '''
-        for kwarg in cid[self.name].required_kwargs: ### check to make sure we have everyting we need. looks up lists within corresponding Command object
+        for kwarg in self.required_kwargs: ### check to make sure we have everyting we need. looks up lists within corresponding Command object
             if not self.kwargs.has_key(kwarg):
                 raise KeyError('CommandTask=%s is missing required kwarg=%s'%(self.name, kwarg))
-        for kwarg in cid[self.name].forbidden_kwargs: ### check to make sure we don't have anything forbidden. looks up list within corresopnding Command object
+        for kwarg in self.forbidden_kwargs: ### check to make sure we don't have anything forbidden. looks up list within corresopnding Command object
             if self.kwargs.has_key(kwarg):
                 raise KeyError('CommandTask=%s contains forbidden kwarg=%s'%(self.name, kwarg))
 
@@ -79,6 +82,9 @@ class RaiseExceptionTask(CommandTask):
     '''
     name = 'raiseException'
     description = 'raises a custom made exception'
+
+    required_kwargs  = []
+    forbidden_kwargs = []
 
     def raiseException(self, verbose=False, *args, **kwargs):
         '''
@@ -102,6 +108,9 @@ class RaiseWarningTask(CommandTask):
     name = 'raiseWarning'
     description = 'raises a custom made warning'
 
+    required_kwargs  = []
+    forbidden_kwargs = []
+
     def raiseWarning(self, verbose=False, *args, **kwargs):
         '''
         raises a RuntimeWarning
@@ -123,6 +132,9 @@ class ClearQueueTask(CommandTask):
     '''
     name = 'clearQueue'
     description = 'clears the queue'
+
+    required_kwargs  = []
+    forbidden_kwargs = []
 
     def clearQueue(self, verbose=False, *args, **kwargs):
         '''
@@ -150,6 +162,9 @@ class ClearGraceIDTask(CommandTask):
     '''
     name = "clearGraceID"
     description = "clears queue of items corresponding to 'graceid'"
+
+    required_kwargs  = ['graceid']
+    forbidden_kwargs = []
 
     def clearGraceID(self, verbose=False, *args, **kwargs):
         '''
@@ -179,6 +194,9 @@ class CheckpointQueueTask(CommandTask):
     name = 'checkpointQueue'
     description = 'writes a representation of the queue to disk'
 
+    required_kwargs  = ['filename']
+    forbidden_kwargs = []
+
     def checkpointQueue(self, verbose=False, *args, **kwargs):
         '''
         writes a representation of queue into 'filename' (required kwarg)
@@ -206,6 +224,9 @@ class LoadQueueTask(CommandTask):
     '''
     name = 'loadQueue'
     description = 'loads a representation of the queue from disk'
+
+    required_kwargs  = ['filename']
+    forbidden_kwargs = []
 
     def loadQueue(self, verbose=False, *args, **kwargs):
         '''
@@ -244,6 +265,9 @@ class PrintMessageTask(CommandTask):
     name = 'printMessage'
     description = 'prints a message to stdout'
 
+    required_kwargs  = ['message']
+    forbidden_kwargs = []
+
     def printMessage(self, verbose=False, *args, **kwargs):
         '''
         prints 'message' (required kwarg)
@@ -259,9 +283,7 @@ class Command:
     an object based representation of Commands. 
     Each specific command should inherit from from this and provide the following functionality
     '''
-    name             = 'command'
-    required_kwargs  = [] ### this must be sync'd with what's needed in the corresponding CommandTask. That is not managed automatically and we have to enusure things match up by hand
-    forbidden_kwargs = []
+    name = 'command'
 
     def __init__(self, command_type='command', **kwargs):
         self.data = { 'uid'        : 'command',
@@ -277,10 +299,10 @@ class Command:
         if one is, we raise a KeyError
         '''
         kwargs = self.data['object']
-        for kwarg in self.required_kwargs: ### check to make sure we have everyting we need
+        for kwarg in tid[self.name].required_kwargs: ### check to make sure we have everyting we need
             if not kwargs.has_key(kwarg):
                 raise KeyError('Command=%s is missing required kwarg=%s'%(self.name, kwarg))
-        for kwarg in self.forbidden_kwargs: ### check to make sure we don't have anything forbidden
+        for kwarg in tid[self.name].forbidden_kwargs: ### check to make sure we don't have anything forbidden
             if kwargs.has_key(kwarg):
                 raise KeyError('Command=%s contains forbidden kwarg=%s'%(self.name, kwarg))
 
@@ -315,9 +337,7 @@ class RaiseException(Command):
     '''
     raise an Exception
     '''
-    name             = 'raiseException'
-    required_kwargs  = []
-    forbidden_kwargs = []
+    name = 'raiseException'
 
     def __init__(self, **kwargs):
         super(RaiseException, self).__init__(command_type=self.name, **kwargs)
@@ -328,9 +348,7 @@ class RaiseWarning(Command):
     '''
     raise a Warning
     '''
-    name             = 'raiseWarning'
-    required_kwargs  = []
-    forbidden_kwargs = []
+    name = 'raiseWarning'
 
     def __init__(self, **kwargs):
         super(RaiseWarning, self).__init__(command_type=self.name, **kwargs)
@@ -341,9 +359,7 @@ class ClearQueue(Command):
     '''
     empty the queue
     '''
-    name             = 'clearQueue'
-    required_kwargs  = []
-    forbidden_kwargs = []
+    name = 'clearQueue'
 
     def __init__(self, **kwargs):
         super(ClearQueue, self).__init__(command_type=self.name, **kwargs)
@@ -354,9 +370,7 @@ class ClearGraceID(Command):
     '''
     empties the queue of all items associated with this GraceID
     '''
-    name             = 'clearGraceID'
-    required_kwargs  = ['graceid']
-    forbidden_kwargs = []
+    name = 'clearGraceID'
 
     def __init__(self, **kwargs):
         super(ClearGraceID, self).__init__(command_type=self.name, **kwargs)
@@ -367,9 +381,7 @@ class CheckpointQueue(Command):
     '''
     save a representation of the queue to disk
     '''
-    name             = 'checkpointQueue'
-    required_kwargs  = ['filename']
-    forbidden_kwargs = []
+    name = 'checkpointQueue'
 
     def __init__(self, **kwargs):
         super(CheckpointQueue, self).__init__(command_type=self.name, **kwargs)
@@ -378,9 +390,7 @@ class LoadQueue(Command):
     '''
     load a representation fo the queue from disk
     '''
-    name             = 'loadQueue'
-    required_kwargs  = ['filename']
-    forbidden_kwargs = []
+    name = 'loadQueue'
 
     def __init__(self, **kwargs):
         super(LoadQueue, self).__init__(command_type=self.name, **kwargs)
@@ -391,9 +401,7 @@ class PrintMessage(Command):
     '''
     print a message
     '''
-    name             = 'printMessage'
-    required_kwargs  = ['message']
-    forbidden_kwargs = []
+    name = 'printMessage'
 
     def __init__(self, **kwargs):
         super(PrintMessage, self).__init__(command_type=self.name, **kwargs)
