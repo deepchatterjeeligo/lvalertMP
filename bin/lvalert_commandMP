@@ -130,18 +130,18 @@ if __name__=="__main__":
         raise ValueError("I don't know how to import commands for --library=%s"%opts.libarary)
 
     if opts.show_commands: ### print the known commands
-        print "known commands are :\n\t%s"%("\n\t".join(sorted(commands.cid.keys())))
+        print "known commands are :\n\t%s"%("\n\t".join(commands.knownCommands()))
         import sys
         sys.exit(0)
         
     if opts.show_kwargs: ### print the required and forbidden kwargs
-        print "cmd=%s\n  requires\n\t%s\n  forbids\n\t%s"%(cmd, "\n\t".join(sorted(commands.tid[cmd].required_kwargs)), "\n\t".join(sorted(commands.tid[cmd].forbidden_kwargs)))
+        print "cmd=%s\n  requires\n\t%s\n  forbids\n\t%s"%(cmd, "\n\t".join(commands.requiredKWargs(cmd)), "\n\t".join(commands.forbiddenKWargs(cmd)))
         import sys
         sys.exit(0)
 
     ### ensure we know how to actually set up this command
     if not commands.cid.has_key(cmd):
-        raise ValueError( "I do not know how to format (or interpret) cmd=%s\nKnown commands are : %s"%( cmd, ", ".join( sorted(commands.cid.keys()) ) ) )
+        raise ValueError( "I do not know how to format (or interpret) cmd=%s\nKnown commands are : %s"%( cmd, ", ".join(commands.knownCommands()) ) )
 
     ### construct the object
     if opts.verbose:

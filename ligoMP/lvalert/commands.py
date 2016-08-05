@@ -27,7 +27,7 @@ class CommandQueueItem(utils.QueueItem):
     description = 'parent of all command queue items. Implements automatic generation of associated Tasks, etc'
 
     def __init__(self, t0, queue, queueByGraceID, **kwargs):
-        tasks = [ tid[self.name](queue, queueByGraceID, **kwargs) ] ### look up tasks automatically via name attribute
+        tasks = [ __tid__[self.name](queue, queueByGraceID, **kwargs) ] ### look up tasks automatically via name attribute
         super(CommandQueueItem, self).__init__(t0, tasks)
 
 class CommandTask(utils.Task):
@@ -45,7 +45,7 @@ class CommandTask(utils.Task):
         self.queue = queue
         self.queueByGraceID = queueByGraceID
         if kwargs.has_key('timeout'): ### if this is supplied, we use it
-            timeout = kwargs.pop('timeout') ### remove it from kwargs to prevent possible confusion
+            timeout = kwargs['timeout']
         else:
             timeout = -infty ### default is to do things ASAP
         super(CommandTask, self).__init__(timeout, getattr(self, self.name), **kwargs) ### lookup function handle automatically using self.name
@@ -149,7 +149,7 @@ class ClearQueueTask(CommandTask):
 
 #------------------------
 
-class ClearGraceIDTask(CommandQueueItem):
+class ClearGraceIDQueueItem(CommandQueueItem):
     '''
     QueueItem that empties queue of QueueItems associated with graceid
     '''
@@ -208,6 +208,49 @@ class CheckpointQueueTask(CommandTask):
         file_obj = open(filename, 'w')
         pickle.dump( self.queue, file_obj ) 
         file_obj.close()
+
+#------------------------
+
+class RepeatedCheckpointQueueItem(CommandQueueItem):
+    '''
+    QueueItem that repeatedly saves a representation of the queue to disk
+    '''
+    name = 'repeatedCheckpoint'
+    description = 'repeatedly save a representation of the queue to disk'
+
+    def execute(self, verbose=False):
+        '''
+        overwrites parent method because we don't want to mark this as completed or move task into completedTasks
+        '''
+        task = self.tasks[0] ### only one task!
+        task.execute( verbose=verbose ) ### actuall execute the task. This will write the queue to disk and update task.expiration
+        self.expiration = task.expiration ### propagate updated task.expiration to self.expiration
+        ### Note: we don't update complete because it is already False and we want it to stay that way
+
+class RepeatedCheckpointTask(CommandTask):
+    '''
+    Task that saves a representation of the queue to disk and updates it's own expiration
+    '''
+    name = 'repeatedCheckpoint'
+    description = 'writes a representation of the queue to disk and updates expiration'
+
+    required_kwargs  = ['filename', 'timeout']
+    forbidden_kwargs = []
+
+    def repeatedCheckpoint(self, verbose=False, *args, **kwargs):
+        '''
+        writes a representation of queue into 'filename' (required kwarg)
+        also updates expiration
+
+        WARNING: we may want to gzip or somehow compress the pickle files produced. We'd need to mirror this within loadQueue.
+        '''
+        import pickle
+        filename = kwargs['filename']
+        file_obj = open(filename, 'w')
+        pickle.dump( self.queue, file_obj )
+        file_obj.close()
+
+        self.setExpiration(self.expiration) ### update expiration
 
 #------------------------
 
@@ -299,10 +342,10 @@ class Command:
         if one is, we raise a KeyError
         '''
         kwargs = self.data['object']
-        for kwarg in tid[self.name].required_kwargs: ### check to make sure we have everyting we need
+        for kwarg in __tid__[self.name].required_kwargs: ### check to make sure we have everyting we need
             if not kwargs.has_key(kwarg):
                 raise KeyError('Command=%s is missing required kwarg=%s'%(self.name, kwarg))
-        for kwarg in tid[self.name].forbidden_kwargs: ### check to make sure we don't have anything forbidden
+        for kwarg in __tid__[self.name].forbidden_kwargs: ### check to make sure we don't have anything forbidden
             if kwargs.has_key(kwarg):
                 raise KeyError('Command=%s contains forbidden kwarg=%s'%(self.name, kwarg))
 
@@ -326,10 +369,10 @@ class Command:
     def genQueueItems(self, queue, queueByGraceID, t0):
         '''
         defines a list of QueueItems that need to be added to the queue
-        uses automatic lookup via qid to identify which QueueItem must be generated based on self.name
+        uses automatic lookup via __qid__ to identify which QueueItem must be generated based on self.name
         '''
         self.checkObject() ### ensure we have all the kwargs we need
-        return [ qid[self.name](t0, queue, queueByGraceID, **self.data['object']) ] ### look up the QueueItem via qid and self.name, then call the __init__ as needed
+        return [ __qid__[self.name](t0, queue, queueByGraceID, **self.data['object']) ] ### look up the QueueItem via qid and self.name, then call the __init__ as needed
 
 #------------------------
 
@@ -386,6 +429,19 @@ class CheckpointQueue(Command):
     def __init__(self, **kwargs):
         super(CheckpointQueue, self).__init__(command_type=self.name, **kwargs)
 
+#------------------------
+
+class RepeatedCheckpoint(Command):
+    '''
+    save a representation of the queue to disk repeatedly
+    '''
+    name = "repeatedCheckpoint"
+
+    def __init__(self, **kwargs):
+        super(RepeatedCheckpoint, self).__init__(command_type=self.name, **kwargs)
+
+#------------------------
+
 class LoadQueue(Command):
     '''
     load a representation fo the queue from disk
@@ -411,24 +467,68 @@ class PrintMessage(Command):
 #-------------------------------------------------
 
 ### set up dictionaries
-cid = {} ### Commands by their name attributes
-qid = {} ### QueueItems by their name attributes
-tid = {} ### Tasks by their name attributes
+__cid__ = {} ### Commands by their name attributes
+__qid__ = {} ### QueueItems by their name attributes
+__tid__ = {} ### Tasks by their name attributes
 for x in vars().values():
 
     if isinstance(x, types.ClassType):
         if issubclass(x, Command):
-            cid[x.name] = x
+            __cid__[x.name] = x
 
     elif isinstance(x, type):
         if issubclass(x, CommandQueueItem):
-            qid[x.name] = x
+            __qid__[x.name] = x
         elif issubclass(x, CommandTask):
-            tid[x.name] = x
+            __tid__[x.name] = x
 
-cid.pop('command') ### get rid of parent class because we shouldn't be calling it. It's really just a template...
-qid.pop('command') ### get rid of parent class
-tid.pop('command') ### get rid of parent class
+__cid__.pop('command') ### get rid of parent class because we shouldn't be calling it. It's really just a template...
+__qid__.pop('command') ### get rid of parent class
+__tid__.pop('command') ### get rid of parent class
+
+### confirm that __cid__, __qid__, and __tid__ all have matching keys
+assert (sorted(__cid__.keys()) == sorted(__qid__.keys())) and (sorted(__cid__.keys()) == sorted(__tid__.keys())), \
+    "inconsistent name attributes within sets of defined Commands, CommandQueueItems, and CommandTasks"
+
+#------------------------
+# utilities for looking up info within private variables
+#------------------------
+
+def initCommand( name, **kwargs ):
+    '''
+    wrapper that instantiates Command objects
+    '''
+    if not __cid__.has_key(name):
+        raise KeyError('Command=%s is not known'%name)
+    return __cid__[name]( **kwargs )
+
+#-----------
+
+def knownCommands():
+    '''
+    returns a sorted list of known commands
+    '''
+    return sorted(__cid__.keys())
+
+#-----------
+
+def requiredKWargs( name ):
+    '''
+    returns the required KWargs for this command
+    '''
+    if not __tid__.has_key(name):
+        raise KeyError('Command=%s is not known'%name)
+    return __tid__[name].required_kwargs
+
+#-----------
+
+def forbiddenKWargs( name ):
+    '''
+    returns the forbidden KWargs for this command
+    '''
+    if not __tid__.has_key(name):
+        raise KeyError('Command=%s is not known'%name)
+    return __tid__[name].forbidden_kwargs
 
 #-------------------------------------------------
 # parseCommand
@@ -442,7 +542,7 @@ def parseCommand( queue, queueByGraceID, alert, t0):
     if alert['uid'] != 'command':
         raise ValueError('I only know how to parse alerts with uid="command"')
 
-    cmd = cid[alert['alert_type']]() ### instantiate the Command object
+    cmd = initCommand( alert['alert_type'] ) ### instantiate the Command object
     cmd.parse( alert ) ### parse the alert message
 
     for item in cmd.genQueueItems(queue, queueByGraceID, t0): ### add items to the queue
