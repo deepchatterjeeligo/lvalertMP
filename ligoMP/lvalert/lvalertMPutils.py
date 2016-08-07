@@ -35,14 +35,14 @@ class SortedQueue(object):
     """
 
     def __init__(self):
-        self.queue = []
+        self.__queue__ = []
         self.complete = 0
 
     def __len__(self):
-        return len(self.queue)
+        return len(self.__queue__)
 
     def __getitem__(self, ind):
-        return self.queue[ind]
+        return self.__queue__[ind]
 
     def insert(self, newItem):
         """
@@ -57,19 +57,19 @@ class SortedQueue(object):
         if not isinstance(newItem, QueueItem):
             raise ValueError("SortedQueue *must* contain only QueueItems")
 
-        for item in self.queue: ### iterate through queue and insert where appropriate
+        for item in self.__queue__: ### iterate through queue and insert where appropriate
             if item.expiration > newItem.expiration:
-                self.queue.insert( ind, newItem )
+                self.__queue__.insert( ind, newItem )
                 break
         else:
-            self.queue.append( newItem )
+            self.__queue__.append( newItem )
         self.complete += newItem.complete
 
     def pop(self, ind=0):
         """
         removes and returns the item stored at ind in the queue
         """
-        item = self.queue.pop(ind)
+        item = self.__queue__.pop(ind)
         self.complete -= item.complete
         return item
 
@@ -77,7 +77,7 @@ class SortedQueue(object):
         """
         remove all completed items from the queue
         """
-        remove = [ind for ind, item in enumerate(self.queue) if item.complete] ### identify the items that are complete
+        remove = [ind for ind, item in enumerate(self.__queue__) if item.complete] ### identify the items that are complete
         remove.reverse() ### start from the back so we don't mess up any indecies
         for ind in remove:
             queue.pop(ind) ### remove this item
@@ -88,7 +88,7 @@ class SortedQueue(object):
         sorts all items in case there's been modifications
         Hopefully, this won't be needed but we provide it just in case
         """
-        self.queue.sort(key=lambda item: item.expiration)
+        self.__queue__.sort(key=lambda item: item.expiration)
 
     def setComplete(self):
         """
@@ -96,7 +96,7 @@ class SortedQueue(object):
 
         this should NOT be necessary as long as queue is properly managed externally
         """
-        self.complete = sum([item.complete for item in self.queue])
+        self.complete = sum([item.complete for item in self.__queue__])
         
 #-------------------------------------------------
 
@@ -197,7 +197,10 @@ class QueueItem(object):
             if self.hasExpired():
                 task = self.tasks.pop(0) ### extract this task
                 task.execute( verbose=verbose ) ### perform this task
-                self.completedTasks.append( task ) ### mark as completed
+                if task.hasExpired(): ### check whether the task is actually done
+                    self.completedTasks.append( task ) ### mark as completed
+                else: ### task is NOT done, add it back in
+                    self.add( [task] )
             else:
                 break
         self.complete = len(self.tasks)==0 ### only complete when there are no remaining tasks

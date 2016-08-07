@@ -218,14 +218,14 @@ class RepeatedCheckpointQueueItem(CommandQueueItem):
     name = 'repeatedCheckpoint'
     description = 'repeatedly save a representation of the queue to disk'
 
-    def execute(self, verbose=False):
-        '''
-        overwrites parent method because we don't want to mark this as completed or move task into completedTasks
-        '''
-        task = self.tasks[0] ### only one task!
-        task.execute( verbose=verbose ) ### actuall execute the task. This will write the queue to disk and update task.expiration
-        self.expiration = task.expiration ### propagate updated task.expiration to self.expiration
-        ### Note: we don't update complete because it is already False and we want it to stay that way
+#    def execute(self, verbose=False):
+#        '''
+#        overwrites parent method because we don't want to mark this as completed or move task into completedTasks
+#        '''
+#        task = self.tasks[0] ### only one task!
+#        task.execute( verbose=verbose ) ### actuall execute the task. This will write the queue to disk and update task.expiration
+#        self.expiration = task.expiration ### propagate updated task.expiration to self.expiration
+#        ### Note: we don't update complete because it is already False and we want it to stay that way
 
 class RepeatedCheckpointTask(CommandTask):
     '''
@@ -250,7 +250,7 @@ class RepeatedCheckpointTask(CommandTask):
         pickle.dump( self.queue, file_obj )
         file_obj.close()
 
-        self.setExpiration(self.expiration) ### update expiration
+        self.setExpiration(self.expiration) ### update expiration -> self.expiration+self.timeout
 
 #------------------------
 
