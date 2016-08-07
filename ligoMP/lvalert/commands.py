@@ -214,6 +214,8 @@ class CheckpointQueueTask(CommandTask):
 class RepeatedCheckpointQueueItem(CommandQueueItem):
     '''
     QueueItem that repeatedly saves a representation of the queue to disk
+
+    note: this is almost identical to CheckpointOueue but we implement separate classes for clarity
     '''
     name = 'repeatedCheckpoint'
     description = 'repeatedly save a representation of the queue to disk'
@@ -230,6 +232,8 @@ class RepeatedCheckpointQueueItem(CommandQueueItem):
 class RepeatedCheckpointTask(CommandTask):
     '''
     Task that saves a representation of the queue to disk and updates it's own expiration
+
+    note: this is almost identical to CheckpointOueue but we implement separate classes for clarity
     '''
     name = 'repeatedCheckpoint'
     description = 'writes a representation of the queue to disk and updates expiration'
@@ -251,6 +255,7 @@ class RepeatedCheckpointTask(CommandTask):
         file_obj.close()
 
         self.setExpiration(self.expiration) ### update expiration -> self.expiration+self.timeout
+                                            ### this is the only substantive difference between RepeatedChecpoint and CheckpointQueue
 
 #------------------------
 
