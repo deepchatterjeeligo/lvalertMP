@@ -2,7 +2,7 @@
 
 %-------------------------------------------------
 
-%\linespread{2.0}
+\bibliographystyle{abbrv}
 
 \usepackage{fullpage}
 
@@ -51,6 +51,9 @@
 \newcommand{\SortedQueue}{\texttt{SortedQueue}}
 \newcommand{\QueueItem}{\texttt{QueueItem}}
 \newcommand{\Task}{\texttt{Task}}
+\newcommand{\Command}{\texttt{Command}}
+\newcommand{\CommandQueueItem}{\texttt{CommandQueueItem}}
+\newcommand{\CommandTask}{\texttt{CommandTask}}
 
 \newcommand{\lvalertMPini}{\texttt{lvalert\_listenMP.ini}}
 \newcommand{\childConfigini}{\texttt{childConfig.ini}}
@@ -230,8 +233,6 @@ We note that the internal storage of ordered \Task~instances within the \QueueIt
 If desired, multiple \Task~instances can be scheuduled and managed with \SortedQueue~alone by assigning a single \Task~to each \QueueItem~and filling the \SortedQueue~with multiple \QueueItem~instances.
 However, we allow \QueueItem~instances to manage multiple tasks because this can sometimes simplify the representation of single follow-up processes.
 
-FINDME
-
 \vspace{0.5cm}
 \noindent
 \textit{attributes}
@@ -405,7 +406,7 @@ There are three (3) main methods defined within \lvalertMP.
 \begin{itemize}
     \item{\interactiveQueue (\S\ref{sec: interactiveQueue})}
     \item{\parseAlert (\S\ref{sec: parseAlert})}
-    \item{\parseCommand (\S\ref{sec: parseCommnad})}
+    \item{\parseCommand (\S\ref{sec: parseCommand})}
 \end{itemize}
 \interactiveQueue~is called from within \lvalertListenMP~via \multiprocessing~and assigned a separate \PID.
 In this way, \interactiveQueue~handles most of the manipulations of \SortedQueue~instances and execution.
@@ -633,7 +634,8 @@ Most libraries will not need to define more commands than those supported here.
 
 \parseCommand~performs automatic detection of the supported commands by reading in the appropriate library. 
 Because the library is conveniently structured, all instantiations are automated and it is straightforward to generate {\QueueItem}s and add them to \textit{queue}.
-See \S\ref{sec: lvalertListenMP} and \ref{sec: commands} for more details.
+See \S\ref{sec: lvalertListenMP} and \S\ref{sec: commands} for more details.
+\S\ref{sec: verbatim parseCommand} reproduces the code within \parseCommand~almost verbatim.
 
 %-----------
 
@@ -719,52 +721,52 @@ The API is as similar as possible to \lvalertListen.
 \begin{itemize}
     \item{username
         \begin{itemize}
-            \item{\FIXME{reference \lvalertListen~documentation?}}
+            \item{\FIXME{reference \lvalertListen~documentation}}
         \end{itemize}
          }
-    \item{password (\FIXME{FIXME! support \texttt{.netrc} instead of \texttt{--password} option.)}
+    \item{password \FIXME{use .netrc patch!}
         \begin{itemize}
-            \item{\FIXME{reference \lvalertListen~documentation?}}
+            \item{\FIXME{reference \lvalertListen~documentation}}
         \end{itemize}
          }
     \item{server
         \begin{itemize}
-            \item{\FIXME{reference \lvalertListen~documentation?}}
+            \item{\FIXME{reference \lvalertListen~documentation}}
         \end{itemize}
          }
     \item{resource
         \begin{itemize}
-            \item{\FIXME{reference \lvalertListen~documentation?}}
+            \item{\FIXME{reference \lvalertListen~documentation}}
         \end{itemize}
          }
     \item{config-file
         \begin{itemize}
-            \item{\FIXME{reference \lvalertListen~documentation?}}
+            \item{\FIXME{reference \lvalertListen~documentation}}
         \end{itemize}
          }
     \item{show
         \begin{itemize}
-            \item{\FIXME{reference \lvalertListen~documentation?}}
+            \item{\FIXME{reference \lvalertListen~documentation}}
         \end{itemize}
          }
     \item{node
         \begin{itemize}
-            \item{\FIXME{reference \lvalertListen~documentation?}}
+            \item{\FIXME{reference \lvalertListen~documentation}}
         \end{itemize}
          }
     \item{verbose
         \begin{itemize}
-            \item{\FIXME{reference \lvalertListen~documentation?}}
+            \item{\FIXME{reference \lvalertListen~documentation}}
         \end{itemize}
          }
     \item{debug
         \begin{itemize}
-            \item{\FIXME{reference \lvalertListen~documentation?}}
+            \item{\FIXME{reference \lvalertListen~documentation}}
         \end{itemize}
          }
     \item{version
         \begin{itemize}
-            \item{\FIXME{reference \lvalertListen~documentation?}}
+            \item{\FIXME{reference \lvalertListen~documentation}}
         \end{itemize}
          }
 \end{itemize}
@@ -777,7 +779,7 @@ The API is as similar as possible to \lvalertListen.
 Because \lvalertListenMP~simply routes \alert~messages from nodes into child processes, we can send commands to those processes through specific nodes.
 This is accomplished through \lvalertSend, and \lvalertCommandMP~simply structures the associated \json~messages in a standard way so that the child processes' \parseAlert~methods can interpret them, usually through delegation to \parseCommand.
 
-Most librarires will be copmletely satisfied with the default set of commands supported within \lvalertMP (described in detail in \S\ref{sec: commands}).
+Most librarires will be copmletely satisfied with the default set of commands supported within \lvalertMP (described in detail in \S\ref{sec: default commands}).
 However, \lvalertCommandMP~can be extended for any particular library as long as that library's \parseAlert~method knows how to interpret the associated \json~messages.
 
 \vspace{0.5cm}
@@ -818,42 +820,42 @@ However, \lvalertCommandMP~can be extended for any particular library as long as
          }
     \item{username
         \begin{itemize}
-            \item{\FIXME{reference \lvalertSend~documentation?}}
+            \item{\FIXME{reference \lvalertSend~documentation}}
         \end{itemize}
          }
     \item{password \FIXME{use .netrc patch!}
         \begin{itemize}
-            \item{\FIXME{reference \lvalertSend~documentation?}}
+            \item{\FIXME{reference \lvalertSend~documentation}}
         \end{itemize}
          }
     \item{server
         \begin{itemize}
-            \item{\FIXME{reference \lvalertSend~documentation?}}
+            \item{\FIXME{reference \lvalertSend~documentation}}
         \end{itemize}
          }
     \item{resource
         \begin{itemize}
-            \item{\FIXME{reference \lvalertSend~documentation?}}
+            \item{\FIXME{reference \lvalertSend~documentation}}
         \end{itemize}
          }
     \item{node
         \begin{itemize}
-            \item{\FIXME{reference \lvalertSend~documentation?}}
+            \item{\FIXME{reference \lvalertSend~documentation}}
         \end{itemize}
          }
     \item{verbose
         \begin{itemize}
-            \item{\FIXME{reference \lvalertSend~documentation?}}
+            \item{\FIXME{reference \lvalertSend~documentation}}
         \end{itemize}
          }
     \item{debug
         \begin{itemize}
-            \item{\FIXME{reference \lvalertSend~documentation?}}
+            \item{\FIXME{reference \lvalertSend~documentation}}
         \end{itemize}
          }
     \item{max\_attempts
         \begin{itemize}
-            \item{\FIXME{reference \lvalertSend~documentation?}}
+            \item{\FIXME{reference \lvalertSend~documentation}}
         \end{itemize}
          }
 \end{itemize}
@@ -1192,10 +1194,149 @@ For a concrete example of how \parseCommand~implements similar functionality, we
 
 %------------------------
 
+\newpage 
+
 \section{commands}
 \label{sec: commands}
 
-\FIXME{specify how commands.py is structures and how \QueueItem~and \Task~ are automatically constructed. Quote \parseCommand~verbatem here. Describe auto detection of defined commands}
+We provide examples of how we can extend the \QueueItem~and \Task~classes to accomplish specific goals. 
+In particular, we focus on modifying the \textit{name} attributes and setting up automatic instantiation through the library supporing \lvalertCommandMP.
+
+%---
+
+\subsection{default commands}
+\label{sec: default commands}
+
+We list the default commands supported here, along with the required and forbidden keys for (key, val) pairs.
+
+\begin{itemize}
+    \item{printMessage
+        \begin{itemize}
+            \item{causes a process to print \textit{message} to \stdout.
+                \begin{itemize}
+                    \item{requires: \textit{message}}
+                    \item{forbids: }
+                \end{itemize}
+                 }
+        \end{itemize}
+         }
+    \item{raiseException
+        \begin{itemize}
+            \item{causes a process to raise a \texttt{RuntimeException}.
+                \begin{itemize}
+                    \item{requires: }
+                    \item{forbids: }
+                \end{itemize}
+                 }
+        \end{itemize}
+         }
+    \item{raiseWarning
+        \begin{itemize}
+            \item{causes a process to raise a \texttt{RuntimeWarning}.
+                \begin{itemize}
+                    \item{requires: }
+                    \item{forbids: }
+                \end{itemize}
+                 }
+        \end{itemize}
+         }
+    \item{checkpointQueue
+        \begin{itemize}
+            \item{causes a process to write a representation of its \textit{queue} into \textit{filename}.
+                \begin{itemize}
+                    \item{requires: \textit{filename}}
+                    \item{forbids: }
+                \end{itemize}
+                 }
+        \end{itemize}
+         }
+    \item{repeatedCheckpoint
+        \begin{itemize}
+            \item{causes a process to schedule a repeating \QueueItem~which writes a representation of \textit{queue} into \textit{filename}. Checkpoints are separated by \textit{timeout} seconds.
+                \begin{itemize}
+                    \item{requires: \textit{filename}, \textit{timeout}}
+                    \item{forbids: }
+                \end{itemize}
+                 }
+        \end{itemize}
+         }
+    \item{loadQueue
+        \begin{itemize}
+            \item{causes a process to load a \textit{queue} from \textit{filename}. All {\QueueItem}s loaded from \textit{filename} are added to the existing \textit{queue}.
+                \begin{itemize}
+                    \item{requires: \textit{filename}}
+                    \item{forbids: }
+                \end{itemize}
+                 }
+        \end{itemize}
+         }
+    \item{clearGraceID
+        \begin{itemize}
+            \item{causes a process to remove (or mark as \textit{complete}) all {\QueueItem}s associated with \textit{graceid}.
+                \begin{itemize}
+                    \item{requires: \textit{graceid}}
+                    \item{forbids: }
+                \end{itemize}
+                 }
+        \end{itemize}
+         }
+    \item{clearQueue
+        \begin{itemize}
+            \item{causes a process to remove all {\QueueItem}s from \textit{queue}.
+                \begin{itemize}
+                    \item{requires: }
+                    \item{forbids: }
+                \end{itemize}
+                 }
+        \end{itemize}
+         }
+\end{itemize}
+
+%---
+
+\subsection{automatic detection and instantiation}
+\label{sec: automatic detection and instantiation}
+
+\begin{itemize}
+    \item{\FIXME{describe how parent classes (\CommandQueueItem~and \CommandTask) extend \QueueItem~and \Task~to enable automatic instantiation via \textit{name} attribute and automatic lookup.}}
+    \item{\FIXME{describe automatic lookup using \textit{name} attribute.}}
+    \item{\FIXME{describe how \lvalertCommandMP~delegates to automatically generate {\QueueItem}s. Specifically, mention that this is defined within the \Command~object, which also parses and writes commands.}}
+\end{itemize}
+
+%---
+
+\subsection{nearly verbatim \parseCommand}
+\label{sec: verbatim parseCommand}
+
+We reproduce \parseCommand~nearly verbatim below.
+This shows how delegation to Command objects coupled with automatic instantiation can be heavily leveraged to make the actual logic within \parseCommand~nearly trivial.
+
+\begin{verbatim}
+def parseCommand( queue, queueByGraceID, alert, t0):
+    '''
+    a doppelganger for parseAlert that focuses on commands.
+    this should be called from within parseAlert as needed
+    '''
+    if alert['uid'] != 'command': ### confirm that this is actually a command
+        raise ValueError('I only know how to parse alerts with uid="command"')
+
+    cmd = initCommand( alert['alert_type'] ) ### instantiate the Command object
+    cmd.parse( alert ) ### parse the alert message via delegatin to the Command object
+
+    items = cmd.genQueueItems(queue, queueByGraceID, t0) ### delegate to generate new QueueItems
+    for item in items: ### add items to the queue
+        queue.insert( item )
+        if hasattr(item, 'graceid'): ### add to queueByGraceID if needed
+            queueByGraceID[item.graceid].insert( item )
+
+    return 0 ### the number of new completed tasks in queue. 
+             ### This is not strictly needed and is not captured 
+             ### and we should modify the attribute of SortedQueue directly
+\end{verbatim}
+
+%------------------------
+
+\bibliography{refs}
 
 %-------------------------------------------------
 \end{document}
