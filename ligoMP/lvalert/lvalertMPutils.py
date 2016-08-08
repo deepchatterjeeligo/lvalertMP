@@ -197,10 +197,13 @@ class QueueItem(object):
             if self.hasExpired():
                 task = self.tasks.pop(0) ### extract this task
                 task.execute( verbose=verbose ) ### perform this task
+                ### NOTE: this next step could introduce a race condition, althouth it is unlikely to ever actually matter
+                ###   a more proper solution would be to give task objects "complete" attributes and to check that, but
+                ###   this should work well enough
                 if task.hasExpired(): ### check whether the task is actually done
                     self.completedTasks.append( task ) ### mark as completed
                 else: ### task is NOT done, add it back in
-                    self.add( [task] )
+                    self.add( task )
             else:
                 break
         self.complete = len(self.tasks)==0 ### only complete when there are no remaining tasks
