@@ -1297,11 +1297,23 @@ We list the default commands supported here, along with the required and forbidd
 \subsection{automatic detection and instantiation}
 \label{sec: automatic detection and instantiation}
 
-\begin{itemize}
-    \item{\FIXME{describe how parent classes (\CommandQueueItem~and \CommandTask) extend \QueueItem~and \Task~to enable automatic instantiation via \textit{name} attribute and automatic lookup.}}
-    \item{\FIXME{describe automatic lookup using \textit{name} attribute.}}
-    \item{\FIXME{describe how \lvalertCommandMP~delegates to automatically generate {\QueueItem}s. Specifically, mention that this is defined within the \Command~object, which also parses and writes commands.}}
-\end{itemize}
+The library supporting \lvalertCommandMP~defines extensions to both \QueueItem~and \Task~classes, called \CommandQueueItem~and \CommandTask, respectively.
+These extensions automate the instantiation of {\Task}s, in as much as users can instantiate {\CommandQueueItem}s and the associated \CommandTask~objects will automatically be constructed.
+Specifically, this is accomplished using the \textit{name} attribute possessed by both \QueueItem~and \Task~classes.
+Each \CommandQueueItem~expects to have a single \CommandTask, and that both classes will have the same \textit{name} attribute. 
+Therefore, the \CommandQueueItem~can instantiate the required task by simply looking up the constructor for the \CommandTask~with the corresponding \textit{name}.
+What's more, each \CommandTask~automatically assigns a function to \textit{functionHandle}, expecting the function to be an attribute of the \CommandTask~with the same name as what is stored under \CommandTask.name (eg: returned by \texttt{getattr(self, self.name)}).
+Thus, the \CommandQueueItem~and \CommandTask~enable a great deal of automation. 
+In fact, when {\CommandQueueItem}s are generated and added to the \textit{queue}, they are generated within another class representing each possible command (\Command).
+Again, by using the shared \textit{name} attribute, the \Command~class can automatically call the constructor for the associated \CommandQueueItem, which in turn automatically instantiates the associated \CommandTask~object.
+This makes the actual content of \parseCommand~extremely short (\S\ref{sec: verbatim parseCommand}).
+
+We note that the actual known commands (\S\ref{sec: default commands}) are each extensions of the \CommandQueueItem~and \CommandTask~classes.
+However, the definitions of these extension are tantamount to overwritting the \textit{name} and \textit{description} attributes, as well as defining the actual execution as a method belonging to the extension of \CommandTask.
+
+Furthermore, the \Command~class provides methods that both \texttt{parse} and \texttt{write} the associated \json~dictionaries that are sent via \alert~from \lvalertCommandMP~and interpretted within \parseCommand.
+Thus, if new commands are desired they can be relatively quickly implemented by declaring three new extensions, one each of \Command, \CommandQueueItem, and \CommandTask.
+All these extensions must share a \textit{name} attribute and will be automatically detected within \lvalertCommandMP.
 
 %---
 
