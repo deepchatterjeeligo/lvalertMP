@@ -38,6 +38,9 @@ class SortedQueue(object):
         self.__queue__ = []
         self.complete = 0
 
+    def __iter__(self):
+        return self.__queue__.__iter__()
+
     def __len__(self):
         return len(self.__queue__)
 
@@ -57,7 +60,7 @@ class SortedQueue(object):
         if not isinstance(newItem, QueueItem):
             raise ValueError("SortedQueue *must* contain only QueueItems")
 
-        for item in self.__queue__: ### iterate through queue and insert where appropriate
+        for ind, item in enumerate(self.__queue__): ### iterate through queue and insert where appropriate
             if item.expiration > newItem.expiration:
                 self.__queue__.insert( ind, newItem )
                 break
