@@ -211,6 +211,11 @@ class LVAlertHandler(object):
                 mp_child_name = self.actions[n]
                 proc, conn = self.procs[mp_child_name] ### simply assume we have a working child
 
+                if not proc.is_alive():
+                    for proc, conn in self.procs.values():
+                        proc.terminate()
+                    raise RuntimeError("child=%s died"%(mp_child_name))
+
                 ### send message through the pipe!
                 conn.send( (e, time.time()) ) ### send the message and the time it was received (in case there are delays in reading on the other side)
 
