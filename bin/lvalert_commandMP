@@ -30,7 +30,6 @@ def send( string, node, username, password, server='lvalert.cgca.uwm.edu', resou
     file_obj.close()
 
     ### construct command line for lvalert_send
-    raise NotImplementedError('send a json formatted string to an lvalert node')
     cmdLine = 'lvalert_send --username %(username)s --password %(password)s --server %(server)s --resource %(resource)s --node %(node)s --file %(file) --max_attemps %(retry)'%\
         { 'username' : username,
           'password' : password,
