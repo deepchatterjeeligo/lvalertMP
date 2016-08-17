@@ -139,13 +139,13 @@ if __name__=="__main__":
         sys.exit(0)
 
     ### ensure we know how to actually set up this command
-    if not commands.cid.has_key(cmd):
+    if cmd not in commands.knownCommands():
         raise ValueError( "I do not know how to format (or interpret) cmd=%s\nKnown commands are : %s"%( cmd, ", ".join(commands.knownCommands()) ) )
 
     ### construct the object
     if opts.verbose:
         print 'constructing %s Command object with data:\n\t%s'%( cmd, "\n\t".join("%s\t: %s"%(key, str(data[key])) for key in sorted(data.keys())) )
-    cmdObj = commands.qid[cmd]( **data )
+    cmdObj = commands.initCommand( cmd, **data )
 
     ### note: for what it's worth, we pass along any and all key,val pairs supplied at the command line. 
     ### It is the responsibility of the CommandTask to ignore what it doesn't need and to set defaults if they are missing.
