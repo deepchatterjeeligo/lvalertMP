@@ -326,7 +326,7 @@ class PrintMessageTask(CommandTask):
 # define representations of commands
 #-------------------------------------------------
 
-class Command:
+class Command(object):
     '''
     an object based representation of Commands. 
     Each specific command should inherit from from this and provide the following functionality
@@ -477,12 +477,10 @@ __qid__ = {} ### QueueItems by their name attributes
 __tid__ = {} ### Tasks by their name attributes
 for x in vars().values():
 
-    if isinstance(x, types.ClassType):
+    if isinstance(x, type):
         if issubclass(x, Command):
             __cid__[x.name] = x
-
-    elif isinstance(x, type):
-        if issubclass(x, CommandQueueItem):
+        elif issubclass(x, CommandQueueItem):
             __qid__[x.name] = x
         elif issubclass(x, CommandTask):
             __tid__[x.name] = x
