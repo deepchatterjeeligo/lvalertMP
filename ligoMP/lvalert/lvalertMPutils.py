@@ -38,6 +38,9 @@ class SortedQueue(object):
         self.__queue__ = []
         self.complete = 0
 
+    def __str__(self):
+        return "SortedQueue{queue=[%s]}"%(", ".join(str(item) for item in self.__queue__))
+
     def __iter__(self):
         return self.__queue__.__iter__()
 
@@ -125,6 +128,9 @@ class Task(object):
         self.args = args
         self.kwargs = kwargs
 
+    def __str__(self):
+        return "Task{%s : %s, expiration=%.3f}"%(self.name, self.description, self.expiration)
+
     def setExpiration(self, t0):
         """
         set expiration relative to start time provided (t0)
@@ -167,6 +173,9 @@ class QueueItem(object):
             self.expiration = -infty ### nothing to do, so we are already expired
             self.complete = True
 
+    def __str__(self):
+        return "QueueItem{%s : %s, expiration=%.3f, complete=%s, tasks=[%s]}"%(self.name, self.description, self.expiration, self.complete, "|".join(str(task) for task in self.tasks))
+
     def sortTasks(self):
         """
         sort (remaining) tasks by expiration
@@ -197,6 +206,7 @@ class QueueItem(object):
         """
         while len(self.tasks):
             self.expiration = self.tasks[0].expiration
+
             if self.hasExpired():
                 task = self.tasks.pop(0) ### extract this task
                 task.execute( verbose=verbose ) ### perform this task
@@ -220,8 +230,13 @@ class QueueItem(object):
         for task in newTasks:
             if not issubclass(type(task), Task):
                 raise ValueError("each element of tasks must be an instance of ligo.lvalert.lvalertMPutils.Task")
-            task.setExpiration( self.t0 )
+
+            if task.expiration==None: ### only update if this has not yet been set -> new Task and not something added back in
+                                      ### this means we're trusting tasks that modify their own expiration to manage it well
+                task.setExpiration( self.t0 )
+
             self.tasks.append( task )
+
         self.sortTasks() ### ensure tasks are sorted
 
     def remove(self, taskName):

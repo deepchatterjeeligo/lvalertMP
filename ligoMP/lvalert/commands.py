@@ -28,6 +28,10 @@ class CommandQueueItem(utils.QueueItem):
 
     def __init__(self, t0, queue, queueByGraceID, **kwargs):
         tasks = [ __tid__[self.name](queue, queueByGraceID, **kwargs) ] ### look up tasks automatically via name attribute
+
+        if kwargs.has_key('graceid'): ### if attached to a graceid, associate it as such
+            self.graceid = kwargs['graceid']
+
         super(CommandQueueItem, self).__init__(t0, tasks)
 
 class CommandTask(utils.Task):
@@ -44,8 +48,8 @@ class CommandTask(utils.Task):
     def __init__(self, queue, queueByGraceID, **kwargs ):
         self.queue = queue
         self.queueByGraceID = queueByGraceID
-        if kwargs.has_key('timeout'): ### if this is supplied, we use it
-            timeout = kwargs['timeout']
+        if kwargs.has_key('sleep'): ### if this is supplied, we use it
+            timeout = kwargs['sleep'] 
         else:
             timeout = -infty ### default is to do things ASAP
         super(CommandTask, self).__init__(timeout, getattr(self, self.name), **kwargs) ### lookup function handle automatically using self.name
@@ -60,11 +64,12 @@ class CommandTask(utils.Task):
         for kwarg in self.required_kwargs: ### check to make sure we have everyting we need. looks up lists within corresponding Command object
             if not self.kwargs.has_key(kwarg):
                 raise KeyError('CommandTask=%s is missing required kwarg=%s'%(self.name, kwarg))
+
         for kwarg in self.forbidden_kwargs: ### check to make sure we don't have anything forbidden. looks up list within corresopnding Command object
             if self.kwargs.has_key(kwarg):
                 raise KeyError('CommandTask=%s contains forbidden kwarg=%s'%(self.name, kwarg))
 
-    def command(self, verbose=False, *args, **kwargs):
+    def command(self, verbose=False, **kwargs):
         pass
 
 #------------------------
@@ -86,7 +91,7 @@ class RaiseExceptionTask(CommandTask):
     required_kwargs  = []
     forbidden_kwargs = []
 
-    def raiseException(self, verbose=False, *args, **kwargs):
+    def raiseException(self, verbose=False, **kwargs):
         '''
         raises a RuntimeError
         '''
@@ -111,7 +116,7 @@ class RaiseWarningTask(CommandTask):
     required_kwargs  = []
     forbidden_kwargs = []
 
-    def raiseWarning(self, verbose=False, *args, **kwargs):
+    def raiseWarning(self, verbose=False, **kwargs):
         '''
         raises a RuntimeWarning
         '''
@@ -136,7 +141,7 @@ class ClearQueueTask(CommandTask):
     required_kwargs  = []
     forbidden_kwargs = []
 
-    def clearQueue(self, verbose=False, *args, **kwargs):
+    def clearQueue(self, verbose=False, **kwargs):
         '''
         empties all QueueItems from the queue and from queueByGraceID
         '''
@@ -166,16 +171,16 @@ class ClearGraceIDTask(CommandTask):
     required_kwargs  = ['graceid']
     forbidden_kwargs = []
 
-    def clearGraceID(self, verbose=False, *args, **kwargs):
+    def clearGraceID(self, verbose=False, **kwargs):
         '''
         empties all QueueItems associated with graceid (required kwarg) from queueByGraceID. 
         Marks these as complete so they are ignored within queue.
         '''
         graceid = kwargs['graceid']
-        if queueByGraceID.has_key(graceid):
-            for item in queueByGraceID.pop(graceid): ### remove graceid from queueByGraceID
+        if self.queueByGraceID.has_key(graceid):
+            for item in self.queueByGraceID.pop(graceid): ### remove graceid from queueByGraceID
                 item.complete = True ### mark as complete
-                self.queue += 1 ### increment counter within global queue
+                self.queue.complete += 1 ### increment counter within global queue
         ### note, we don't need to add this back into the queueByGraceID because this Item doesn't have a graceid attribute
 
 #------------------------
@@ -197,7 +202,7 @@ class CheckpointQueueTask(CommandTask):
     required_kwargs  = ['filename']
     forbidden_kwargs = []
 
-    def checkpointQueue(self, verbose=False, *args, **kwargs):
+    def checkpointQueue(self, verbose=False, **kwargs):
         '''
         writes a representation of queue into 'filename' (required kwarg)
 
@@ -220,15 +225,6 @@ class RepeatedCheckpointQueueItem(CommandQueueItem):
     name = 'repeatedCheckpoint'
     description = 'repeatedly save a representation of the queue to disk'
 
-#    def execute(self, verbose=False):
-#        '''
-#        overwrites parent method because we don't want to mark this as completed or move task into completedTasks
-#        '''
-#        task = self.tasks[0] ### only one task!
-#        task.execute( verbose=verbose ) ### actuall execute the task. This will write the queue to disk and update task.expiration
-#        self.expiration = task.expiration ### propagate updated task.expiration to self.expiration
-#        ### Note: we don't update complete because it is already False and we want it to stay that way
-
 class RepeatedCheckpointTask(CommandTask):
     '''
     Task that saves a representation of the queue to disk and updates it's own expiration
@@ -238,10 +234,10 @@ class RepeatedCheckpointTask(CommandTask):
     name = 'repeatedCheckpoint'
     description = 'writes a representation of the queue to disk and updates expiration'
 
-    required_kwargs  = ['filename', 'timeout']
+    required_kwargs  = ['filename', 'sleep']
     forbidden_kwargs = []
 
-    def repeatedCheckpoint(self, verbose=False, *args, **kwargs):
+    def repeatedCheckpoint(self, verbose=False, **kwargs):
         '''
         writes a representation of queue into 'filename' (required kwarg)
         also updates expiration
@@ -254,7 +250,7 @@ class RepeatedCheckpointTask(CommandTask):
         pickle.dump( self.queue, file_obj )
         file_obj.close()
 
-        self.setExpiration(self.expiration) ### update expiration -> self.expiration+self.timeout
+        self.setExpiration(self.expiration) ### update expiration -> self.expiration+self.sleep
                                             ### this is the only substantive difference between RepeatedChecpoint and CheckpointQueue
 
 #------------------------
@@ -276,7 +272,7 @@ class LoadQueueTask(CommandTask):
     required_kwargs  = ['filename']
     forbidden_kwargs = []
 
-    def loadQueue(self, verbose=False, *args, **kwargs):
+    def loadQueue(self, verbose=False, **kwargs):
         '''
         loads a representation of queue from 'filename' (required kwarg)
 
@@ -316,11 +312,38 @@ class PrintMessageTask(CommandTask):
     required_kwargs  = ['message']
     forbidden_kwargs = []
 
-    def printMessage(self, verbose=False, *args, **kwargs):
+    def printMessage(self, verbose=False, **kwargs):
         '''
         prints 'message' (required kwarg)
         '''
         print kwargs['message']
+
+#------------------------
+
+class PrintQueueItem(CommandQueueItem):
+    '''
+    QueueItem that prints queue and queueByGraceID
+    '''
+    name = 'printQueue'
+    description = 'prints queue and queueByGraceID to stdout'
+
+class PrintQueueTask(CommandTask):
+    '''
+    Task that prints queue and queueByGraceID
+    '''
+    name = 'printQueue'
+    description = "prints queue and queueByGraceID to stdout"
+
+    required_kwargs  = []
+    forbidden_kwargs = []
+
+    def printQueue(self, verbose=False, **kwargs ):
+        '''
+        prints queue and queueByGraceID to stdout
+        '''
+        print self.queue
+        for graceid, q in self.queueByGraceID.items():
+            print "%s : %s"%(graceid, q)
 
 #-------------------------------------------------
 # define representations of commands
@@ -428,6 +451,8 @@ class ClearGraceID(Command):
 class CheckpointQueue(Command):
     '''
     save a representation of the queue to disk
+
+    NOTE: this QueueItem will *not* be included in the pkl file because it will be popped when executed
     '''
     name = 'checkpointQueue'
 
@@ -439,6 +464,8 @@ class CheckpointQueue(Command):
 class RepeatedCheckpoint(Command):
     '''
     save a representation of the queue to disk repeatedly
+
+    NOTE: this QueueItem will *not* be included in the pkl file because it will be popped when executed
     '''
     name = "repeatedCheckpoint"
 
@@ -466,6 +493,17 @@ class PrintMessage(Command):
 
     def __init__(self, **kwargs):
         super(PrintMessage, self).__init__(command_type=self.name, **kwargs)
+
+#------------------------
+
+class PrintQueue(Command):
+    '''
+    print queue and queueByGraceID
+    '''
+    name = 'printQueue'
+
+    def __init__(self, **kwargs):
+        super(PrintQueue, self).__init__(command_type=self.name, **kwargs)
 
 #-------------------------------------------------
 # define useful variables
@@ -551,6 +589,8 @@ def parseCommand( queue, queueByGraceID, alert, t0):
     for item in cmd.genQueueItems(queue, queueByGraceID, t0): ### add items to the queue
         queue.insert( item )
         if hasattr(item, 'graceid'):
+            if not queueByGraceID.has_key(item.graceid):
+                queueByGraceID[item.graceid] = utils.SortedQueue()
             queueByGraceID[item.graceid].insert( item )
 
     return 0 ### the number of new completed tasks in queue. 
