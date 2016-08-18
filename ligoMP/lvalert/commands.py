@@ -176,12 +176,15 @@ class ClearGraceIDTask(CommandTask):
         empties all QueueItems associated with graceid (required kwarg) from queueByGraceID. 
         Marks these as complete so they are ignored within queue.
         '''
-        graceid = kwargs['graceid']
-        if self.queueByGraceID.has_key(graceid):
-            for item in self.queueByGraceID.pop(graceid): ### remove graceid from queueByGraceID
-                item.complete = True ### mark as complete
-                self.queue.complete += 1 ### increment counter within global queue
-        ### note, we don't need to add this back into the queueByGraceID because this Item doesn't have a graceid attribute
+        graceid = kwargs['graceid'] ### must be a key of queueByGraceID because this QueueItem has that as an attribute
+        ### do NOT remove key, but only iterate over all the other items
+        ### the first item (0) MUST be a pointer to this Task's QueueItem, which we leave in
+        ### it will be handled within interactiveQueue
+        queue = self.queueByGraceID[graceid]
+        while len(queue) > 1:
+            item = queue.pop(1) ### take the next-to-leading item
+            item.complete = True ### mark as complete
+            self.queue.complete += 1 ### increment counter within global queue
 
 #------------------------
 
