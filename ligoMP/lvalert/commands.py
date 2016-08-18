@@ -7,6 +7,8 @@ author = "reed.essick@ligo.org"
 
 #-------------------------------------------------
 
+import sys
+
 import lvalertMPutils as utils
 
 from numpy import infty
@@ -328,25 +330,41 @@ class PrintQueueItem(CommandQueueItem):
     QueueItem that prints queue and queueByGraceID
     '''
     name = 'printQueue'
-    description = 'prints queue and queueByGraceID to stdout'
+    description = 'prints queue and queueByGraceID to a file and will overwrite anything that exists in that path'
 
 class PrintQueueTask(CommandTask):
     '''
     Task that prints queue and queueByGraceID
     '''
     name = 'printQueue'
-    description = "prints queue and queueByGraceID to stdout"
+    description = "prints queue and queueByGraceID to a file and will overwrite anything that exists in that path"
 
-    required_kwargs  = []
+    required_kwargs  = ['filename']
     forbidden_kwargs = []
 
     def printQueue(self, verbose=False, **kwargs ):
         '''
-        prints queue and queueByGraceID to stdout
+        prints queue and queueByGraceID to a file
+        will overwrite anything existing in that path
+
+        NOTE: if filename=="STDOUT", we default to stdout. if it's "STDERR", we use stderr
         '''
-        print self.queue
+        filename = kwargs['filename']
+        useSTDOUT = filename=='STDOUT'
+        useSTDERR = filename=='STDERR'
+        if useSTDOUT:
+            file_obj = sys.stdout
+        elif useSTDERR:
+            file_obj = sys.stderr
+        else:
+            file_obj = open(filename, 'w')
+
+        print >> file_obj, self.queue
         for graceid, q in self.queueByGraceID.items():
-            print "%s : %s"%(graceid, q)
+            print >> file_obj, "%s : %s"%(graceid, q)
+
+        if not (useSTDOUT or useSTDERR):
+            file_obj.close()
 
 #-------------------------------------------------
 # define representations of commands
