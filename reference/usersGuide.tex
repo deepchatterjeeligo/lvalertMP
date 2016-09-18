@@ -320,8 +320,8 @@ Each \Task~represents one follow-up activity.
 Each follow-up process may perform multiple activities and therefore correspond to multiple \Task~objects.
 These are grouped together under a single \QueueItem~instance for each follow-up process.
 
-\Task~instances perform the actual follow-up activities through delegation to their \textit{functionHandle} attributes.
-There is a standard signature for \textit{functionHandle} expected within \Task.execute.
+\Task~instances perform the actual follow-up activities through delegation to the a function accessible via getattr(self, self.name).
+There is a standard signature for that method expected within \Task.execute.
 This can be modified by creating an extension of the \Task~and overwriting the execute method.
 
 \Task~objects also contain the concept of \textit{timing-out} and \textit{expiration}.
@@ -354,19 +354,9 @@ Note, if we can call \textit{setExpiration} repeatedly to reset the expiration t
             \item{the time-stamp for when this \Task~needs attention. Instantiated as \texttt{None} and set by \textit{setExpiration}.}
         \end{itemize}
          }
-    \item{functionHandle [\texttt{method}]
-        \begin{itemize}
-            \item{a method which is called from within \Task.execute(). Must accept a standardized input argument with signature: \texttt{functionHandle(verbose=verbose, *self.args, **self.kwargs)}. The signature can be changed by creating extensions with modified execute() methods.}
-        \end{itemize}
-         }
-    \item{args [\pythonlist]
-        \begin{itemize}
-            \item{extra argments for \textit{functionHandle}}
-        \end{itemize}
-         }
     \item{kwargs [\pythondict]
         \begin{itemize}
-            \item{extra keyword arguments for \textit{functionHandle}}
+            \item{extra keyword arguments}
         \end{itemize}
          }
 \end{itemize}
@@ -375,7 +365,7 @@ Note, if we can call \textit{setExpiration} repeatedly to reset the expiration t
 \textit{methods}
 
 \begin{itemize}
-    \item{\_\_init\_\_(timeout [\pythonfloat], functionHandle [\texttt{method}], *args, **kwargs)
+    \item{\_\_init\_\_(timeout [\pythonfloat], **kwargs)
         \begin{itemize}
             \item{sets \textit{expiration} to \texttt{None} and stores data.}
         \end{itemize}
@@ -392,7 +382,12 @@ Note, if we can call \textit{setExpiration} repeatedly to reset the expiration t
          }
     \item{execute( verbose=False [\pythonbool])
         \begin{itemize}
-            \item{delegates to \textit{functionHandle} with signature: \\ \texttt{return self.functionHandle( verbose=verbose, *self.args, **self.kwargs )}}
+            \item{delegates with signature: \\ \texttt{return getattr(self, self.name)( verbose=verbose, **self.kwargs )}}
+        \end{itemize}
+         }
+    \item{a method that is accessible via \texttt{getattr(self, self.name)} with signature foo(verbose=False)
+        \begin{itemize}
+            \item{used within execute. This makes it possible to pickle the \Task~object, because we do not specifically store a function pointer as an attribute. This ``template'' is provided so that subclasses that inherit from \Task~have an example of how to avoid repeating code by overwriting the execute method repeatedly. Instead, any shared code can be specified once and specific implementations can inherit it, simply providing a new function to which work is actually delegated. \eventSupervisor~uses this model.}
         \end{itemize}
          }
 \end{itemize}
@@ -1302,7 +1297,6 @@ These extensions automate the instantiation of {\Task}s, in as much as users can
 Specifically, this is accomplished using the \textit{name} attribute possessed by both \QueueItem~and \Task~classes.
 Each \CommandQueueItem~expects to have a single \CommandTask, and that both classes will have the same \textit{name} attribute. 
 Therefore, the \CommandQueueItem~can instantiate the required task by simply looking up the constructor for the \CommandTask~with the corresponding \textit{name}.
-What's more, each \CommandTask~automatically assigns a function to \textit{functionHandle}, expecting the function to be an attribute of the \CommandTask~with the same name as what is stored under \CommandTask.name (eg: returned by \texttt{getattr(self, self.name)}).
 Thus, the \CommandQueueItem~and \CommandTask~enable a great deal of automation. 
 In fact, when {\CommandQueueItem}s are generated and added to the \textit{queue}, they are generated within another class representing each possible command (\Command).
 Again, by using the shared \textit{name} attribute, the \Command~class can automatically call the constructor for the associated \CommandQueueItem, which in turn automatically instantiates the associated \CommandTask~object.
