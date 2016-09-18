@@ -54,7 +54,7 @@ class CommandTask(utils.Task):
             timeout = kwargs['sleep'] 
         else:
             timeout = -infty ### default is to do things ASAP
-        super(CommandTask, self).__init__(timeout, getattr(self, self.name), **kwargs) ### lookup function handle automatically using self.name
+        super(CommandTask, self).__init__(timeout, **kwargs) ### lookup function handle automatically using self.name
         self.checkKWargs() ### ensure we've set this up correctly. Should be redundant if we construct through Command.genQueueItems. 
                            ### supported in case we create QueueItems directly.
 

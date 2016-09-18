@@ -118,14 +118,13 @@ class Task(object):
     name = "task"
     description = "a task"
 
-    def __init__(self, timeout, functionHandle, *args, **kwargs ):
+    def __init__(self, timeout, **kwargs ):
 
         self.timeout = timeout
         self.expiration = None ### we have to set this
 
-        self.functionHandle = functionHandle
-
-        self.args = args
+        assert hasattr(self, self.name), "Task must have a callable attribute accessible via getattr(self, self.name)!"
+        
         self.kwargs = kwargs
 
     def __str__(self):
@@ -148,8 +147,21 @@ class Task(object):
     def execute(self, verbose=False):
         """
         perform associated function call
+
+        NOTE: we go through this backflip of looking up the attribute matching self.name because 
+        there may be more (common) things done during the execution that won't necessarily need to 
+        be reimplemented for every subclass. Although not necessary here, we implement this architecture
+        as an example. A specific example is within eventSupervisor, where emails
+        are sent depending on the result of the delegation. Nonetheless, this could be accomplished
+        by simply overwriting .execute for each subclass as needed.
         """
-        return self.functionHandle( verbose=verbose, *self.args, **self.kwargs )
+        return getattr(self, self.name)( verbose=verbose, **self.kwargs )
+
+    def task(verbose=False, **kwargs):
+        """
+        dummy function required for syntax of this object
+        """
+        pass
 
 class QueueItem(object):
     """
