@@ -123,8 +123,6 @@ class Task(object):
         self.timeout = timeout
         self.expiration = None ### we have to set this
 
-        assert hasattr(self, self.name), "Task must have a callable attribute accessible via getattr(self, self.name)!"
-        
         self.kwargs = kwargs
 
     def __str__(self):
