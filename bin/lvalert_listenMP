@@ -129,7 +129,7 @@ def parse_command_line():
       default=None, help="config file with list of actions" )
   parser.add_option('-N', "--netrc", type="string",\
       default=os.environ.get('NETRC', '~/.netrc'),\
-      help="Load username and password from this file",)
+      help="load username and password from this file",)
 
   parser.add_option("-S","--show",action="store_true",\
       default=False, help="print the payload to stdout" )
@@ -164,15 +164,15 @@ if opts.version:
 ### check netrc file!
 try:
     username, _, password = netrc.netrc(os.path.expanduser(opts.netrc)).authenticators(opts.server)
+    if not opts.username:
+        opts.username = username
+    elif opts.username!=username:
+        password = getpass.getpass('username for server=%(server)s from netrc=%(netrc)s disagrees with --username=%(username)s\npassword for --username=%(username)s : '%{'username':opts.username, 'server':opts.server, 'netrc':opts.netrc})
+
 except:
-    ValueError('no username and password available for server=%s within netrc=%s'%(opts.server, opts.netrc))
-
-if not opts.username:
-    opts.username = raw_input('--username=')
-
-if opts.username!=username:
-    password = getpass.getpass('username for server=%(server)s from netrc=%(netrc)s disagrees with --username=%(username)s\npassword for --username=%(username)s : '%\
-        {'username':opts.username, 'server':opts.server, 'netrc':opts.netrc})
+    if not opts.username:
+        opts.username = raw_input('could not find entry for server%s within netrc=%s\nusername : '%(opts.server, opts.netrc))
+    password = getpass.getpass('could not find entry for server=%s within netrc=%s\npassword for --username=%s : '%(opts.server, opts.netrc, opts.username))
 
 #=============================================================================
 
