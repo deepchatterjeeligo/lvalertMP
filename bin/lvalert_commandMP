@@ -1,7 +1,7 @@
 #!/usr/bin/env python
-usage = "lvalert_commandMP [--options] --node=NODE [key,val key,val ...] cmd"
+usage       = "lvalert_commandMP [--options] --node=NODE [key,val key,val ...] cmd"
 description = "an example of how we can send commands to running instances of lvalert_listenMP. This works with process_type=test"
-author = "reed.essick@ligo.org"
+author      = "reed.essick@ligo.org"
 
 #-------------------------------------------------
 
@@ -17,7 +17,7 @@ from optparse import OptionParser
 def generateTmpFilename( directory='.', suffix='.tmp', num=10, choices="a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 0 1 2 3 4 5 6 7 8 9".split() ):
     return "%s/%s.json"%(directory, "".join(random.choose(choices) for _ in xrange(num)), suffix)
 
-def send( string, node, username, password, server='lvalert.cgca.uwm.edu', resource='sender', max_attempts=10, verbose=False, debug=False ):
+def send( string, node, username, netrc=None, server='lvalert.cgca.uwm.edu', resource='sender', max_attempts=10, verbose=False, debug=False ):
     '''
     sends a json string to an lvalert node
     writes json string to a file and then cleans it up upon completion
@@ -32,17 +32,18 @@ def send( string, node, username, password, server='lvalert.cgca.uwm.edu', resou
     ### construct command line for lvalert_send
     cmdLine = 'lvalert_send --username %(username)s --password %(password)s --server %(server)s --resource %(resource)s --node %(node)s --file %(file) --max_attemps %(retry)'%\
         { 'username' : username,
-          'password' : password,
           'server'   : server,
           'resource' : resource,
           'node'     : node,
           'file'     : filename,
           'retry'    : max_attempts,
         }
+    if netrc:
+        cmdLine += " --netrc %s"%netrc
     if verbose:
-        cmdLine = cmdLine + " --verbose"
+        cmdLine += " --verbose"
     if debug:
-        cmdLine = cmdLine + " --debug"
+        cmdLine += " --debug"
 
     ### submit lvalert_send command
     if opts.verbose:
@@ -74,9 +75,10 @@ def parseCommandLine():
 
     # username and password
     parser.add_option('-a', "--username", default="", help="the username of the publisher or listener")
-    parser.add_option('-b', "--password", default="", help="the password of the publisher or listener")
     parser.add_option('-s', "--server",   default="lvalert.cgca.uwm.edu", help="the pubsub server")
     parser.add_option('-r', "--resource", default="sender", help="resource to use in JID")
+
+    parser.add_option("-N", "--netrc", default=None, help="read username and password from this file. Passed to lvalert_send if supplied")
 
     # access information about root nodes
     parser.add_option('-n', "--node", default=None, help="name of the node on the pubsub server")
@@ -156,4 +158,4 @@ if __name__=="__main__":
     ### send the json string
     if opts.verbose:
         print 'sending json string to node=%s\n%s'%(opts.node, cmdStr)
-    send( cmdStr, opts.node, opts.username, opts.password, server=opts.server, resource=opts.resource, max_attempts=opts.max_attempts, verbose=opts.verbose, debug=opts.debug )
+    send( cmdStr, opts.node, opts.username, netrc=opts.netrc, server=opts.server, resource=opts.resource, max_attempts=opts.max_attempts, verbose=opts.verbose, debug=opts.debug )

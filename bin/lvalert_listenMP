@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 # Copyright (C) Patrick Brady, Brian Moe, Branson Stephens (2015)
+# Copyright (C) Reed Essick (2016)
 #
 # This file is part of lvalert
 #
@@ -16,6 +17,7 @@
 # You should have received a copy of the GNU General Public License
 # along with lvalert.  If not, see <http://www.gnu.org/licenses/>.
 
+import netrc
 import sys
 import os
 import datetime
@@ -116,17 +118,18 @@ def parse_command_line():
   """
   parser = OptionParser(usage=usage)
 
-  #username and password
+  #username and authentication
   parser.add_option("-a","--username",action="store",type="string",\
       default="", help="the username of the publisher or listener" )
-  parser.add_option("-b","--password",action="store",type="string",\
-      default="", help="the password of the publisher or listener" )
   parser.add_option("-s","--server",action="store",type="string",\
       default="lvalert.cgca.uwm.edu", help="the pubsub server" )
   parser.add_option("-r","--resource",action="store",type="string",\
       default="listener", help="resource to use in JID" )
   parser.add_option("-c","--config-file",action="store",type="string",\
       default=None, help="config file with list of actions" )
+  parser.add_option('-N', "--netrc", type="string",\
+      default=os.environ.get('NETRC', '~/.netrc'),\
+      help="Load username and password from this file",)
 
   parser.add_option("-S","--show",action="store_true",\
       default=False, help="print the payload to stdout" )
@@ -157,6 +160,19 @@ if opts.version:
     version = pkg_resources.require("ligo-lvalert")[0].version
     print "LVAlert v. %s" % version
     exit(0)
+
+### check netrc file!
+try:
+    username, _, password = netrc.netrc(os.path.expanduser(opts.netrc)).authenticators(opts.server)
+except:
+    ValueError('no username and password available for server=%s within netrc=%s'%(opts.server, opts.netrc))
+
+if not opts.username:
+    opts.username = raw_input('--username=')
+
+if opts.username!=username:
+    password = getpass.getpass('username for server=%(server)s from netrc=%(netrc)s disagrees with --username=%(username)s\npassword for --username=%(username)s : '%\
+        {'username':opts.username, 'server':opts.server, 'netrc':opts.netrc})
 
 #=============================================================================
 
@@ -359,11 +375,7 @@ if opts.config_file:
 
 # set up the stream
 myjid=JID(opts.username+"@"+opts.server+"/"+opts.resource)
-if not opts.password:
-    mypassword = getpass.getpass()
-else:
-    mypassword = opts.password
-s=MyClient(myjid, mypassword, actions, procs, setup) ### feed in mapping between nodes -> procs, procs and conns, and setup info to fork replacement procs
+s=MyClient(myjid, password, actions, procs, setup) ### feed in mapping between nodes -> procs, procs and conns, and setup info to fork replacement procs
 
 if opts.verbose:
     print "connecting..."
