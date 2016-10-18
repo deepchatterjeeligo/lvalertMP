@@ -14,10 +14,10 @@ from optparse import OptionParser
 
 #-------------------------------------------------
 
-def generateTmpFilename( directory='.', suffix='.tmp', num=10, choices="a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 0 1 2 3 4 5 6 7 8 9".split() ):
-    return "%s/%s.json"%(directory, "".join(random.choose(choices) for _ in xrange(num)), suffix)
+def generateTmpFilename( directory='.', suffix='tmp', num=10, choices="a b c d e f g h i j k l m n o p q r s t u v w x y z A B C D E F G H I J K L M N O P Q R S T U V W X Y Z 0 1 2 3 4 5 6 7 8 9".split() ):
+    return "%s/%s.%s"%(directory, "".join(random.choice(choices) for _ in xrange(num)), suffix)
 
-def send( string, node, username, netrc=None, server='lvalert.cgca.uwm.edu', resource='sender', max_attempts=10, verbose=False, debug=False ):
+def send( string, node, username=None, netrc=None, server='lvalert.cgca.uwm.edu', resource='sender', max_attempts=10, verbose=False, debug=False ):
     '''
     sends a json string to an lvalert node
     writes json string to a file and then cleans it up upon completion
@@ -30,14 +30,15 @@ def send( string, node, username, netrc=None, server='lvalert.cgca.uwm.edu', res
     file_obj.close()
 
     ### construct command line for lvalert_send
-    cmdLine = 'lvalert_send --username %(username)s --password %(password)s --server %(server)s --resource %(resource)s --node %(node)s --file %(file) --max_attemps %(retry)'%\
-        { 'username' : username,
-          'server'   : server,
+    cmdLine = 'lvalert_send --server %(server)s --resource %(resource)s --node %(node)s --file %(file)s --max_attempts %(retry)d'%\
+        { 'server'   : server,
           'resource' : resource,
           'node'     : node,
           'file'     : filename,
           'retry'    : max_attempts,
         }
+    if username:
+        cmdLine += " --username %s"%username
     if netrc:
         cmdLine += " --netrc %s"%netrc
     if verbose:
@@ -74,7 +75,7 @@ def parseCommandLine():
     parser.add_option('', '--show-kwargs', action='store_true', default=False, help='print the required and forbidden kwargs for this command')
 
     # username and password
-    parser.add_option('-a', "--username", default="", help="the username of the publisher or listener")
+    parser.add_option('-a', "--username", default=None, help="the username of the publisher or listener")
     parser.add_option('-s', "--server",   default="lvalert.cgca.uwm.edu", help="the pubsub server")
     parser.add_option('-r', "--resource", default="sender", help="resource to use in JID")
 
