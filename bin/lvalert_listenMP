@@ -33,7 +33,7 @@ from M2Crypto.SSL import Context
 import multiprocessing
 
 ### import the module containing the interactiveQueue
-from ligoMP.lvalert import interactiveQueue as iq
+from lvalertMP.lvalert import interactiveQueue as iq
 
 # pubsub import must come first because it overloads part of the
 # StanzaProcessor class
