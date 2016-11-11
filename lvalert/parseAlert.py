@@ -5,6 +5,8 @@ author = "reed.essick@ligo.org"
 
 import lvalertMPutils as utils
 
+import logging
+
 from commands import parseCommand
 
 #-------------------------------------------------
@@ -13,9 +15,14 @@ def printAlert( graceid, alert="blah", verbose=False ):
     """
     an example action that we trigger off of an alert
     """
+    ### set up logger
     if verbose:
-        print "  print alert"
-    print "    %s : %s" % (graceid, alert)
+        logger = logging.getLogger('iQ.printAlert') ### verbose means this shows up in iQ's log file
+    else:
+        logger = logging.getLogger('printAlert') ### will not show up in iQ's log file
+    logger.addHandler( logging.StreamHandler() )
+
+    logger.info( "%s : %s" % (graceid, alert) )
 
 #-------------------------------------------------
 
@@ -27,6 +34,9 @@ def parseAlert( queue, queueByGraceID, alert, t0, config ):
 
     if graceid == 'command': ### this is a command!
         return parseCommand( queue, queueByGraceID, alert, t0 ) ### delegate and return
+
+    ### set up logger
+    logger = logging.getLogger('iQ.parseAlert') ### want this to propagate to interactiveQueue's logger
        
     ### generate the tasks needed
     ### we print the alert twice to ensure the QueueItem works as expected with multiple Tasks
@@ -44,6 +54,8 @@ def parseAlert( queue, queueByGraceID, alert, t0, config ):
         if not queueByGraceID.has_key(graceid):
             queueByGraceID[graceid] = SortedQueue()
         queueByGraceID[graceid].insert( item )
+
+    logger.debug( 'added QueueItem=%s'item.name ) 
 
     return 0 ### the number of new completed tasks in queue. 
              ### This is not strictly needed and is not captured and we should modify the attribute of SortedQueue directly

@@ -17,6 +17,8 @@ import json
 
 import types ### needed to build dictionary to reference commands by name
 
+import logging
+
 #-------------------------------------------------
 # Define QueueItems and tasks
 #-------------------------------------------------
@@ -319,9 +321,16 @@ class PrintMessageTask(CommandTask):
 
     def printMessage(self, verbose=False, **kwargs):
         '''
-        prints 'message' (required kwarg)
+        prints via a logger 'message' (required kwarg)
         '''
-        print kwargs['message']
+        ### print set up logger
+        logger  = logging.getLogger('iQ.printMessage') ### want this to also propagate to interactiveQueue's logger
+        handler = logging.StreamHandler() ### we don't format this so that it prints exactly as supplied
+                                          ### however, interactiveQueue's handler *will* be formatted nicely 
+        logger.addHandler( handler )
+
+        ### print to logger
+        logger.info( kwargs['message'] )
 
 #------------------------
 
@@ -349,6 +358,10 @@ class PrintQueueTask(CommandTask):
 
         NOTE: if filename=="STDOUT", we default to stdout. if it's "STDERR", we use stderr
         '''
+        if verbose: ### print set up logger
+            logger = logging.getLogger('iQ.%s'%self.name) ### want this to redirect to interactiveQueue's logger
+            logger.info( 'printing Queue to %s'%kwargs['filename'] )
+
         filename = kwargs['filename']
         useSTDOUT = filename=='STDOUT'
         useSTDERR = filename=='STDERR'
@@ -604,6 +617,9 @@ def parseCommand( queue, queueByGraceID, alert, t0):
     if alert['uid'] != 'command':
         raise ValueError('I only know how to parse alerts with uid="command"')
 
+    ### set up logger
+    logger = logging.getLogger('iQ.parseCommand') ### want this to propagate to interactiveQueue's logger
+
     cmd = initCommand( alert['alert_type'] ) ### instantiate the Command object
     cmd.parse( alert ) ### parse the alert message
 
@@ -613,6 +629,7 @@ def parseCommand( queue, queueByGraceID, alert, t0):
             if not queueByGraceID.has_key(item.graceid):
                 queueByGraceID[item.graceid] = utils.SortedQueue()
             queueByGraceID[item.graceid].insert( item )
+        logger.debug( 'added Command=%s'%item.name )
 
     return 0 ### the number of new completed tasks in queue. 
              ### This is not strictly needed and is not captured and we should modify the attribute of SortedQueue directly

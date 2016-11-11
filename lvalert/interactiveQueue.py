@@ -15,6 +15,8 @@ import ConfigParser
 
 import lvalertMPutils as utils
 
+import logging
+
 #---------------------------------------------------------------------------------------------------
 
 def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxComplete=100, maxFrac=0.5, warnThr=1e3, recipients=[], warnDelay=3600, maxWarn=24):
@@ -34,13 +36,29 @@ def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxCo
     warnDelay  : the amount of time we wait before sending a repeat warning message
     maxWarn    : the maximum amount of warnings we send before silencing this functionality
     """
-    ### determine what type of process this is
+    ### load in config file
     config = ConfigParser.SafeConfigParser()
     config.read( config_filename )
 
+    ### extract high level parameters
     process_type = config.get('general', 'process_type')
+    logDir       = config.get('general', 'log_directory') if config.has_option('general', 'log_directory') else "."
+    logLevel     = config.getint('general', 'log_level') if config.has_option('general', 'log_level') else 0
+
+    ### set up logger
+    ### this logger will capture *everything* that is printed through a child logger
+    logger = logging.getLogger("iQ")
+    logger.setLevel(logLevel) ### NOTE: may want to make this an option in config file
+
+    ### set up handlers
+    #                        into a file      with a predictable filename                to stdout
+    for handler in [logging.FileHandler(utils.genLogname(logDir, process_type)), logging.StreamHander()]:
+        handler.setFormatter( utils.genFormatter() )
+        logger.addHandler( handler )
+
+    ### set up libraries depending on process_type
     if verbose:
-        print "initializing process_type : %s"%process_type
+        logger.info( "initializing process_type : %s"%process_type )
 
     if process_type=="test":
         from parseAlert import parseAlert
@@ -75,7 +93,7 @@ def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxCo
             ### this blocks until there is something to recieve, which is why we checked first!
             e, t0 = connection.recv()
             if verbose:
-                print "received : %s"%e
+                logger.info( "received : %s"%e )
             e = json.loads(e)
 
             ### parse the message and insert the appropriate item into the queue
@@ -85,14 +103,14 @@ def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxCo
         while len(queue) and queue[0].complete: ### skip all things that are complete already
             item = queue.pop(0) ### note, we expect this to have been removed from queueByGraceID already
             if verobse:
-                print "ALREADY COMPLETE: "+item.description
+                logger.debug( "ALREADY COMPLETE: "+item.description )
 
         ### iterate through queue and check for expired things...
         if len(queue):
             if queue[0].hasExpired():
                 item = queue.pop(0)
                 if verbose:
-                    print "performing : %s"%(item.description)
+                    logger.info( "performing : %s"%(item.description) )
 
                 item.execute( verbose=verbose ) ### now, actually do somthing with that item
                                                      ### note: gdb is a *required* argument to standardize functionality for follow-up processes
@@ -152,7 +170,7 @@ This is warning number : %d
                     warnCount = 1 ### set this to a positive number so we'll get a recover notice in the log
 
                 if verbose:
-                    print "WARNING: len(queue)=%d <= %d=warnThr"%(len(queue), warnThr)
+                    logger.warn( "len(queue)=%d <= %d=warnThr; emails sent to : %s"%(len(queue), warnThr, ", ".join(recipients)) )
 
                 warnTime = time.time()+warnDelay ### update time when we'll send the next warning
 
@@ -175,7 +193,7 @@ interactiveQueue contains SortedQueue with fewer than %d elements (len(queue)=%d
                 utils.sendEmail( recipients, body, subject ) 
 
             if verbose: ### print RECOVERY notice
-                print "RECOVERY: len(queue)=%d <= %d=warnThr"%(len(queue), warnThr)
+                logger.warn( "len(queue)=%d <= %d=warnThr; emails sent to : %s"%(len(queue), warnThr, ", ".join(recipients)) )
  
         ### sleep if needed
         wait = (start+sleep)-time.time() 

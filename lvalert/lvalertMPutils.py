@@ -9,6 +9,8 @@ import subprocess as sp
 
 import time
 
+import logging
+
 #---------------------------------------------------------------------------------------------------
 
 def sendEmail( recipients, body, subject ):
@@ -22,6 +24,27 @@ def sendEmail( recipients, body, subject ):
     out, err = proc.communicate(input=body)
     if proc.returncode: ### there was an issue
         raise RuntimeError('email failed to send\nstdout : %s\nstderr : %s'%(out, err))
+
+#---------------------------------------------------------------------------------------------------
+
+def genLogname(directory, tag):
+    """
+    standardizes the naming convention for log files
+
+    NOTE: interactiveQueue has a logger named "iQ" and all QueueItems and Tasks can access this logger by referencing it through the logging module.
+          what's more, they can route their own output into multiple log files by adding Handlers to the child loggers
+
+    returns a string
+    """
+    return "%s/%s.log"%(directory, tag)
+
+def genFormatter():
+    """
+    standarizes formatting for loggers
+
+    returns an instance of logging.Formatter
+    """
+    return logging.Formatter('%(asctime)s | %(name)s : %(levelname)s : %(message)s')
 
 #---------------------------------------------------------------------------------------------------
 
@@ -118,12 +141,14 @@ class Task(object):
     name = "task"
     description = "a task"
 
-    def __init__(self, timeout, **kwargs ):
+    def __init__(self, timeout, logTag='iQ', **kwargs ):
 
         self.timeout = timeout
         self.expiration = None ### we have to set this
 
         self.kwargs = kwargs
+
+        self.logTag = "%s.%s"%(logTag, self.name) ### used to set up logger
 
     def __str__(self):
         return "Task{%s : %s, expiration=%.3f}"%(self.name, self.description, self.expiration)
@@ -170,7 +195,7 @@ class QueueItem(object):
     name = "item"
     description = "a series of connected tasks"
 
-    def __init__(self, t0, tasks):
+    def __init__(self, t0, tasks, logTag='iQ'):
 
         self.t0 = t0
         self.tasks = []
@@ -182,6 +207,8 @@ class QueueItem(object):
         else: ### there is nothing to do
             self.expiration = -infty ### nothing to do, so we are already expired
             self.complete = True
+
+        self.logTag = "%s.%s"%(logTag, self.name) ### used to set up logger
 
     def __str__(self):
         return "QueueItem{%s : %s, expiration=%.3f, complete=%s, tasks=[%s]}"%(self.name, self.description, self.expiration, self.complete, "|".join(str(task) for task in self.tasks))
