@@ -55,7 +55,7 @@ def parseAlert( queue, queueByGraceID, alert, t0, config ):
             queueByGraceID[graceid] = SortedQueue()
         queueByGraceID[graceid].insert( item )
 
-    logger.debug( 'added QueueItem=%s'item.name ) 
+    logger.debug( 'added QueueItem=%s'%item.name ) 
 
     return 0 ### the number of new completed tasks in queue. 
              ### This is not strictly needed and is not captured and we should modify the attribute of SortedQueue directly
