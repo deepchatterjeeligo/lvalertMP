@@ -148,7 +148,7 @@ class Task(object):
 
         self.kwargs = kwargs
 
-        self.logTag = "%s.%s"%(logTag, self.name) ### used to set up logger
+        self.logTag = logTag ### used to set up logger
 
     def __str__(self):
         return "Task{%s : %s, expiration=%.3f}"%(self.name, self.description, self.expiration)
@@ -208,7 +208,7 @@ class QueueItem(object):
             self.expiration = -infty ### nothing to do, so we are already expired
             self.complete = True
 
-        self.logTag = "%s.%s"%(logTag, self.name) ### used to set up logger
+        self.logTag = logTag ### used to set up logger
 
     def __str__(self):
         return "QueueItem{%s : %s, expiration=%.3f, complete=%s, tasks=[%s]}"%(self.name, self.description, self.expiration, self.complete, "|".join(str(task) for task in self.tasks))
