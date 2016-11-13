@@ -52,7 +52,7 @@ def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxCo
 
     ### set up handlers
     #                        into a file      with a predictable filename                to stdout
-    for handler in [logging.FileHandler(utils.genLogname(logDir, process_type)), logging.StreamHander()]:
+    for handler in [logging.FileHandler(utils.genLogname(logDir, process_type)), logging.StreamHandler()]:
         handler.setFormatter( utils.genFormatter() )
         logger.addHandler( handler )
 
