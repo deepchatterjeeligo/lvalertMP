@@ -30,13 +30,13 @@ class CommandQueueItem(utils.QueueItem):
     name = 'command'
     description = 'parent of all command queue items. Implements automatic generation of associated Tasks, etc'
 
-    def __init__(self, t0, queue, queueByGraceID, **kwargs):
-        tasks = [ __tid__[self.name](queue, queueByGraceID, **kwargs) ] ### look up tasks automatically via name attribute
+    def __init__(self, t0, queue, queueByGraceID, logTag='iQ', **kwargs):
+        tasks = [ __tid__[self.name](queue, queueByGraceID, logTag="%s.%s"%(logTag, self.name), **kwargs) ] ### look up tasks automatically via name attribute
 
         if kwargs.has_key('graceid'): ### if attached to a graceid, associate it as such
             self.graceid = kwargs['graceid']
 
-        super(CommandQueueItem, self).__init__(t0, tasks)
+        super(CommandQueueItem, self).__init__(t0, tasks, logTag=logTag)
 
 class CommandTask(utils.Task):
     '''
@@ -49,14 +49,14 @@ class CommandTask(utils.Task):
     required_kwargs  = []
     forbidden_kwargs = []
 
-    def __init__(self, queue, queueByGraceID, **kwargs ):
+    def __init__(self, queue, queueByGraceID, logTag='iQ', **kwargs ):
         self.queue = queue
         self.queueByGraceID = queueByGraceID
         if kwargs.has_key('sleep'): ### if this is supplied, we use it
             timeout = kwargs['sleep'] 
         else:
             timeout = -infty ### default is to do things ASAP
-        super(CommandTask, self).__init__(timeout, **kwargs) ### lookup function handle automatically using self.name
+        super(CommandTask, self).__init__(timeout, logTag=logTag, **kwargs) ### lookup function handle automatically using self.name
         self.checkKWargs() ### ensure we've set this up correctly. Should be redundant if we construct through Command.genQueueItems. 
                            ### supported in case we create QueueItems directly.
 
@@ -321,10 +321,10 @@ class PrintMessageTask(CommandTask):
 
     def printMessage(self, verbose=False, **kwargs):
         '''
-        prints via a logger 'message' (required kwarg)
+        prints 'message' (required kwarg) via a logger
         '''
         ### print set up logger
-        logger  = logging.getLogger('iQ.printMessage') ### want this to also propagate to interactiveQueue's logger
+        logger  = logging.getLogger('%s.%s'%(self.logTag, self.name)) ### want this to also propagate to interactiveQueue's logger
         handler = logging.StreamHandler() ### we don't format this so that it prints exactly as supplied
                                           ### however, interactiveQueue's handler *will* be formatted nicely 
         logger.addHandler( handler )
@@ -359,7 +359,7 @@ class PrintQueueTask(CommandTask):
         NOTE: if filename=="STDOUT", we default to stdout. if it's "STDERR", we use stderr
         '''
         if verbose: ### print set up logger
-            logger = logging.getLogger('iQ.%s'%self.name) ### want this to redirect to interactiveQueue's logger
+            logger = logging.getLogger('%s.%s'%(self.logTag,self.name)) ### want this to redirect to interactiveQueue's logger
             logger.info( 'printing Queue to %s'%kwargs['filename'] )
 
         filename = kwargs['filename']
@@ -428,13 +428,13 @@ class Command(object):
         self.checkObject() ### ensure we have all the kwargs we need
         return json.dumps(self.data)
 
-    def genQueueItems(self, queue, queueByGraceID, t0):
+    def genQueueItems(self, queue, queueByGraceID, t0, logTag='iQ'):
         '''
         defines a list of QueueItems that need to be added to the queue
         uses automatic lookup via __qid__ to identify which QueueItem must be generated based on self.name
         '''
         self.checkObject() ### ensure we have all the kwargs we need
-        return [ __qid__[self.name](t0, queue, queueByGraceID, **self.data['object']) ] ### look up the QueueItem via qid and self.name, then call the __init__ as needed
+        return [ __qid__[self.name](t0, queue, queueByGraceID, logTag=logTag, **self.data['object']) ] ### look up the QueueItem via qid and self.name, then call the __init__ as needed
 
 #------------------------
 
@@ -609,7 +609,7 @@ def forbiddenKWargs( name ):
 # parseCommand
 #-------------------------------------------------
 
-def parseCommand( queue, queueByGraceID, alert, t0):
+def parseCommand( queue, queueByGraceID, alert, t0, logTag='iQ' ):
     '''
     a doppelganger for parseAlert that focuses on commands.
     this should be called from within parseAlert as needed
@@ -618,12 +618,12 @@ def parseCommand( queue, queueByGraceID, alert, t0):
         raise ValueError('I only know how to parse alerts with uid="command"')
 
     ### set up logger
-    logger = logging.getLogger('iQ.parseCommand') ### want this to propagate to interactiveQueue's logger
+    logger = logging.getLogger('%s.parseCommand'%logTag) ### want this to propagate to interactiveQueue's logger
 
     cmd = initCommand( alert['alert_type'] ) ### instantiate the Command object
     cmd.parse( alert ) ### parse the alert message
 
-    for item in cmd.genQueueItems(queue, queueByGraceID, t0): ### add items to the queue
+    for item in cmd.genQueueItems(queue, queueByGraceID, t0, logTag=logTag): ### add items to the queue
         queue.insert( item )
         if hasattr(item, 'graceid'):
             if not queueByGraceID.has_key(item.graceid):
