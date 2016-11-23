@@ -16,6 +16,7 @@ import ConfigParser
 import lvalertMPutils as utils
 
 import logging
+import traceback
 
 #---------------------------------------------------------------------------------------------------
 
@@ -96,8 +97,32 @@ def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxCo
                 logger.info( "received : %s"%e )
             e = json.loads(e)
 
-            ### parse the message and insert the appropriate item into the queue
-            parseAlert( queue, queueByGraceID, e, t0, config )
+            ### parse the message and insert the appropriate item into the queuie
+            try:
+                parseAlert( queue, queueByGraceID, e, t0, config )
+            except Exception:
+                trcbk = traceback.format_exc().strip("\n")
+                if verbose:
+                    logger.warn( 'parseAlert raised an exception!' )
+                    logger.warn( trcbk )
+
+                if recipients:
+                    subject = "WARNING: parseAlert caught an exception on %s"%(hostname)
+                    body    = """\
+time (localtime): 
+  %s
+
+lvalert message: 
+  %s
+
+%s
+
+    username : %s
+    hostname : %s
+    config   : %s
+"""%(time.ctime(t0), json.dumps(e), trcbk, username, hostname, config_filename)
+
+                utils.sendEmail( recipients, body, subject )
 
         ### remove any completed tasks from the front of the queue
         while len(queue) and queue[0].complete: ### skip all things that are complete already
@@ -161,7 +186,7 @@ This is warning number : %d
                             subject = "FINAL "+subject
                             body    = body + "This is the final warning!"
 
-                        utils.sendEmail( recipients )
+                        utils.sendEmail( recipients, body, subject )
 
                     else: ### we've already sent the maximum allowed warnings
                         pass
