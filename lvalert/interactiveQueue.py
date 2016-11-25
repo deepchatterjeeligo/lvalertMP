@@ -3,6 +3,8 @@ author = "reed.essick@ligo.org"
 
 #---------------------------------------------------------------------------------------------------
 
+import os
+
 import time
 import json
 
@@ -44,7 +46,7 @@ def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxCo
     ### extract high level parameters
     process_type = config.get('general', 'process_type')
     logDir       = config.get('general', 'log_directory') if config.has_option('general', 'log_directory') else "."
-    logLevel     = config.getint('general', 'log_level') if config.has_option('general', 'log_level') else 0
+    logLevel     = config.getint('general', 'log_level') if config.has_option('general', 'log_level') else 10
 
     ### set up logger
     ### this logger will capture *everything* that is printed through a child logger
@@ -53,12 +55,13 @@ def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxCo
 
     ### set up handlers
     #                        into a file      with a predictable filename                to stdout
-    for handler in [logging.FileHandler(utils.genLogname(logDir, process_type)), logging.StreamHandler()]:
+    for handler in [logging.FileHandler(utils.genLogname(logDir, process_type+'_'+os.path.basename(config_filename).strip('.ini'))), logging.StreamHandler()]:
         handler.setFormatter( utils.genFormatter() )
         logger.addHandler( handler )
 
     ### set up libraries depending on process_type
     if verbose:
+        logger.info( "using config : %s"%config_filename )
         logger.info( "initializing process_type : %s"%process_type )
 
     if process_type=="test":
@@ -100,6 +103,7 @@ def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxCo
             ### parse the message and insert the appropriate item into the queuie
             try:
                 parseAlert( queue, queueByGraceID, e, t0, config )
+
             except Exception:
                 trcbk = traceback.format_exc().strip("\n")
                 if verbose:
