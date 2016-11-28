@@ -68,7 +68,7 @@ def parseCommandLine():
     parser = OptionParser(usage=usage, description=description)
 
     # library containing commands.py
-    parser.add_option("-l", "--library", default="ligoMP", type='string', help='the library from which we import commands.py. Currently, only --library=ligoMP is supported')
+    parser.add_option("-l", "--library", default="lvalertMP", type='string', help='the library from which we import commands.py. Currently, only --library=lvalertMP is supported')
 
     # options about command key,val pairs
     parser.add_option('', '--show-commands', action='store_true', default=False, help='print the known commands')
@@ -126,8 +126,8 @@ if __name__=="__main__":
 
     ### import commands based on library option
     ### we may make this even more flexible by using eval, but I'd like to avoid that if possible
-    if opts.library=='ligoMP':
-        from ligoMP.lvalert import commands
+    if opts.library=='lvalertMP':
+        from lvalertMP.lvalert import commands
     else:
         raise ValueError("I don't know how to import commands for --library=%s"%opts.libarary)
 
