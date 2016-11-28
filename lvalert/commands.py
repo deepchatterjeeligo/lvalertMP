@@ -307,14 +307,14 @@ class PrintMessageItem(CommandQueueItem):
     QueueItem that prints a message
     '''
     name = 'printMessage'
-    description = 'prints a message to stdout'
+    description = 'prints a message'
 
 class PrintMessageTask(CommandTask):
     '''
     Task that prints a message
     '''
     name = 'printMessage'
-    description = 'prints a message to stdout'
+    description = 'prints a message'
 
     required_kwargs  = ['message']
     forbidden_kwargs = []
@@ -331,6 +331,35 @@ class PrintMessageTask(CommandTask):
 
         ### print to logger
         logger.info( kwargs['message'] )
+
+#------------------------
+
+class SendEmaila(CommandQueueItem):
+    '''
+    QueueItemm that sends an email
+    '''
+    name = 'sendEmail'
+    description = 'sends an email'
+
+class SendEmailTask(CommandTask):
+    '''
+    Task that sends an email
+    '''
+    name = 'sendEmail'
+    description = 'sends an email'
+
+    required_kwargs  = ['recipients', 'subject', 'body']
+    forbidden_kwargs = []
+
+    def sendEmail(self, verbose=False, **kwargs):
+        '''
+        sends email via delegation to lvalertMPutils.sendEmail
+        '''
+        if verbose:
+            logger = logging.getLogger('%s.%s'%(self.logTag,self.name)) ### want this to redirect to interactiveQueue's logger
+            logger.info( 'sending email to %s'%kwargs['recipients'] )
+
+        utils.sendEmail( kwargs['recipients'].split(), kwargs['body'], kwargs['subject'] )
 
 #------------------------
 
@@ -527,6 +556,15 @@ class PrintMessage(Command):
 
     def __init__(self, **kwargs):
         super(PrintMessage, self).__init__(command_type=self.name, **kwargs)
+
+class SendEmail(Command):
+    '''
+    sends an email
+    '''
+    name = 'sendEmail'
+
+    def __init__(self, **kwargs):
+        super(SendEmail, self).__init__(command_type=self.name, **kwargs)
 
 #------------------------
 
