@@ -126,7 +126,7 @@ lvalert message:
     config   : %s
 """%(time.ctime(t0), json.dumps(e), trcbk, username, hostname, config_filename)
 
-                utils.sendEmail( recipients, body, subject )
+                    utils.sendEmail( recipients, body, subject )
 
         ### remove any completed tasks from the front of the queue
         while len(queue) and queue[0].complete: ### skip all things that are complete already
