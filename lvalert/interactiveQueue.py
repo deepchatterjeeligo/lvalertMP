@@ -141,9 +141,39 @@ lvalert message:
                 if verbose:
                     logger.info( "performing : %s"%(item.description) )
 
-                item.execute( verbose=verbose ) ### now, actually do somthing with that item
-                                                     ### note: gdb is a *required* argument to standardize functionality for follow-up processes
-                                                     ####      if it is not needed, we should just pass "None"
+                ### now, actually do something with that item
+                try: 
+                    item.execute( verbose=verbose ) 
+
+                except Exception:
+                    item.complete = True ### mark this as complete so we don't repeatedly hit the same error
+                                         ### NOTE: this may cause other formatting errors if this item modified queue or queueByGraceId
+                                         ###       and failed before those were complete...
+
+                    trcbk = traceback.format_exc().strip("\n")
+                    if verbose:
+                        logger.warn( '%s\'s execute raised an exception! Marking QueueItem as complete to avoid repeated errors.'%item.name )
+                        logger.warn( trcbk )
+
+                    if recipients:
+                        subject = "WARNING: %s\'execute caught an exception on %s"%(item.name, hostname)
+                        body    = """\
+time (localtime): 
+  %s
+
+QueueItem = %s: 
+  %s
+
+%s
+
+    username : %s
+    hostname : %s
+    config   : %s
+
+QueueItem marked complete to avoid repeated errors.
+"""%(time.ctime(t0), item.name, trcbk, username, hostname, config_filename)
+
+                        utils.sendEmail( recipients, body, subject )
 
                 if item.complete: ### item is now complete, so we remove it from the queue
                     ### remove this item from queueByGraceID
