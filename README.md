@@ -1,4 +1,11 @@
 # lvalertMP
+
+You can read the official documentation here
+
+    - http://lvalertmp.readthedocs.io/en/latest/
+
+-------------------
+
 a place holder for lvalertMP functionality
 
 I've dumped the important lvalertMP code in here to document it in a place that is not my laptop.
