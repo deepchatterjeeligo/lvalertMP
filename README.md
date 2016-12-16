@@ -2,7 +2,7 @@
 
 You can read the official documentation here
 
-    - http://lvalertmp.readthedocs.io/en/latest/
+  - http://lvalertmp.readthedocs.io/en/latest/
 
 -------------------
 
