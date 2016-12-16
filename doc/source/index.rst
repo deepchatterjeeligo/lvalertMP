@@ -12,6 +12,13 @@ It also provides a generic architecture for scheduling and managing activities i
 .. toctree::
    :maxdepth: 2
 
+   introduction
+   classes
+   methods
+   configs
+   executables
+   workflow
+   commands
 
 
 Indices and tables
