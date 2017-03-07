@@ -17,7 +17,6 @@
 # You should have received a copy of the GNU General Public License
 # along with lvalert.  If not, see <http://www.gnu.org/licenses/>.
 
-import netrc
 import sys
 import os
 import datetime
@@ -34,6 +33,8 @@ import multiprocessing
 
 ### import the module containing the interactiveQueue
 from lvalertMP.lvalert import interactiveQueue as iq
+
+from ligo.lvalert.utils import safe_netrc
 
 # pubsub import must come first because it overloads part of the
 # StanzaProcessor class
@@ -163,13 +164,13 @@ if opts.version:
 
 ### check netrc file!
 try:
-    username, _, password = netrc.netrc(os.path.expanduser(opts.netrc)).authenticators(opts.server)
+    username, _, password = safe_netrc(os.path.expanduser(opts.netrc)).authenticators(opts.server)
     if not opts.username:
         opts.username = username
     elif opts.username!=username:
         password = getpass.getpass('username for server=%(server)s from netrc=%(netrc)s disagrees with --username=%(username)s\npassword for --username=%(username)s : '%{'username':opts.username, 'server':opts.server, 'netrc':opts.netrc})
 
-except:
+except IOError:
     if not opts.username:
         opts.username = raw_input('could not find entry for server%s within netrc=%s\nusername : '%(opts.server, opts.netrc))
     password = getpass.getpass('could not find entry for server=%s within netrc=%s\npassword for --username=%s : '%(opts.server, opts.netrc, opts.username))
