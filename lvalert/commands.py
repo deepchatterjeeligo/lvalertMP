@@ -334,7 +334,7 @@ class PrintMessageTask(CommandTask):
 
 #------------------------
 
-class SendEmail(CommandQueueItem):
+class SendEmailItem(CommandQueueItem):
     '''
     QueueItemm that sends an email
     '''
