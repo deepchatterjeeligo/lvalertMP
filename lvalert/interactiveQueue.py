@@ -156,7 +156,7 @@ lvalert message:
                         logger.warn( trcbk )
 
                     if recipients:
-                        subject = "WARNING: %s\'execute caught an exception on %s"%(item.name, hostname)
+                        subject = "WARNING: %s.execute caught an exception on %s"%(item.name, hostname)
                         body    = """\
 time (localtime): 
   %s
@@ -171,7 +171,7 @@ QueueItem = %s:
     config   : %s
 
 QueueItem marked complete to avoid repeated errors.
-"""%(time.ctime(t0), item.name, trcbk, username, hostname, config_filename)
+"""%(time.ctime(t0), item.name, item.description, trcbk, username, hostname, config_filename)
 
                         utils.sendEmail( recipients, body, subject )
 
