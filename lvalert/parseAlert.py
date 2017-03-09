@@ -8,40 +8,49 @@ import lvalertMPutils as utils
 import logging
 
 from commands import parseCommand
+from ligo.lvalert_heartbeat.lvalertMP_heartbeat import parseHeartbeat 
 
 #-------------------------------------------------
 
-def printAlert( graceid, alert="blah", verbose=False ):
-    """
-    an example action that we trigger off of an alert
-    """
-    ### set up logger
-    if verbose:
-        logger = logging.getLogger('iQ.printAlert') ### verbose means this shows up in iQ's log file
-    else:
-        logger = logging.getLogger('printAlert') ### will not show up in iQ's log file
-    logger.addHandler( logging.StreamHandler() )
+class PrintAlertTask(utils.Task):
 
-    logger.info( "%s : %s" % (graceid, alert) )
+    name = 'printAlert'
+
+    def __init__(self, timeout, graceid, alert, logTag='iQ'):
+        self.logTag = logTag
+        self.graceid = graceid
+        self.alert = alert
+        super(PrintAlertTask, self).__init__(timeout)
+
+    def printAlert(self, verbose=False):
+        """
+        an example action that we trigger off of an alert
+        """
+        ### set up logger
+        logger = logging.getLogger(self.logTag+'.printAlert') ### verbose means this shows up in iQ's log file
+        logger.info( "%s : %s" % (self.graceid, self.alert) )
 
 #-------------------------------------------------
 
-def parseAlert( queue, queueByGraceID, alert, t0, config ):
+def parseAlert( queue, queueByGraceID, alert, t0, config, logTag='iQ' ):
     """
     figures out what type of action needs to be taken and modifies SortedQueue as needed
     """
     graceid = alert['uid']
 
     if graceid == 'command': ### this is a command!
-        return parseCommand( queue, queueByGraceID, alert, t0 ) ### delegate and return
+        return parseCommand( queue, queueByGraceID, alert, t0, logTag=logTag ) ### delegate and return
+
+    if graceid == 'heartbeat': ### this is a heartbeat!
+        return parseHeartbeat( queue, queueByGraceID, alert, t0, config, logTag=logTag )
 
     ### set up logger
-    logger = logging.getLogger('iQ.parseAlert') ### want this to propagate to interactiveQueue's logger
-       
+    logger = logging.getLogger(logTag+'.parseAlert') ### want this to propagate to interactiveQueue's logger
+
     ### generate the tasks needed
     ### we print the alert twice to ensure the QueueItem works as expected with multiple Tasks
-    taskA = utils.Task(  5.0, printAlert, graceid, alert=alert )
-    taskB = utils.Task( 10.0, printAlert, graceid, alert=alert )
+    taskA = PrintAlertTask(  5.0, graceid, alert, logTag=logTag )
+    taskB = PrintAlertTask( 10.0, graceid, alert, logTag=logTag )
 
     ### generate the Item which houses the tasks
     item = utils.QueueItem( t0, [taskA, taskB] )
