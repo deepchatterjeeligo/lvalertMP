@@ -41,7 +41,7 @@ def parseAlert( queue, queueByGraceID, alert, t0, config, logTag='iQ' ):
     if graceid == 'command': ### this is a command!
         return parseCommand( queue, queueByGraceID, alert, t0, logTag=logTag ) ### delegate and return
 
-    if graceid == 'heartbeat': ### this is a heartbeat!
+    elif graceid == 'heartbeat': ### this is a heartbeat!
         return parseHeartbeat( queue, queueByGraceID, alert, t0, config, logTag=logTag )
 
     ### set up logger
