@@ -131,7 +131,7 @@ lvalert message:
         ### remove any completed tasks from the front of the queue
         while len(queue) and queue[0].complete: ### skip all things that are complete already
             item = queue.pop(0) ### note, we expect this to have been removed from queueByGraceID already
-            if verobse:
+            if verbose:
                 logger.debug( "ALREADY COMPLETE: "+item.description )
 
         ### iterate through queue and check for expired things...

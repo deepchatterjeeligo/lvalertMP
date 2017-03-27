@@ -294,7 +294,7 @@ class LoadQueueTask(CommandTask):
 
         ### iterate through queue and add it into self.queue and self.queueByGraceID
         for item in queue:
-            self.queue.inset( item )
+            self.queue.insert( item )
             if hasattr(item, 'graceid'):
                 if not self.queueByGraceID.has_key(item.graceid): ### need to make a SortedQueue for this graceid
                     self.queueByGraceID[item.graceid] = utils.SortedQueue()

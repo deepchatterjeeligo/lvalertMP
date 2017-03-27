@@ -111,7 +111,7 @@ class SortedQueue(object):
         remove = [ind for ind, item in enumerate(self.__queue__) if item.complete] ### identify the items that are complete
         remove.reverse() ### start from the back so we don't mess up any indecies
         for ind in remove:
-            queue.pop(ind) ### remove this item
+            self.__queue__.pop(ind) ### remove this item
         self.complete = 0
 
     def resort(self):
