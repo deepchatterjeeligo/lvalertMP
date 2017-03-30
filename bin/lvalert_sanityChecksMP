@@ -1,0 +1,81 @@
+#!/usr/bin/env python
+
+__usage__ = 'lvalert_sanityChecksMP [--options]'
+__description__ = """\
+a series of tests that require humans to confirm that they worked.
+
+More pointed tests are available within lvlaert_libraryTestsMP
+"""
+__author__ = "Reed Essick (reed.essick@ligo.org)"
+
+#-------------------------------------------------
+
+from lvalertMP.lvalert import lvalertMPutils as utils
+from lvalertMP.lvalert import interactiveQueue
+
+from optparse import OptionParser
+
+#-------------------------------------------------
+
+parser = OptionParser(usage=__usage__, description=__description__)
+
+parser.add_option('-v', '--verbose', default=False, action='store_true')
+parser.add_option('-V', '--Verbose', default=False, action='store_true')
+
+### options about what to test
+parser.add_option('', '--everything', default=False, action='store_true',
+    help='run all tests')
+
+parser.add_option('', '--lvalertMPutils', default=False, action='store_true',
+    help='run tests of lvalretMPutils')
+
+parser.add_option('', '--commands', default=False, action='store_true',
+    help='run tests of commands')
+
+parser.add_option('', '--interactiveQueue', default=False, action='store_true',
+    help='run tests of interactiveQueue')
+
+opts, args = parser.parse_args()
+
+#-------------------------------------------------
+
+if opts.lvalertMPutils or opts.everything:
+    if opts.verbose:
+        print( 'testing lvalertMPutils' )
+    raise NotImplementedError
+
+    #--- communication with outside world
+    ### sendEmail
+
+#------------------------
+
+if opts.commands or opts.everything:
+    if opts.verbose:
+        print( 'testing commands' )
+    raise NotImplementedError
+
+    #--- CommandTask functionality
+    ### sendEmail (requires recipients, body, subject)
+
+#------------------------
+
+if opts.interactiveQueue or opts.everything:
+    if opts.verbose:
+        print( 'testing interactiveQueue' )
+    raise NotImplementedError
+
+    #--- reading in config file
+
+    #--- setting up the logger
+
+    #--- checking that process_type is known
+
+    #--- sending emails
+    ### when parseAlert raises a warning
+    ### when execute raises a warning
+    ### when the queue gets too big
+    ### when the queue shrinks to an acceptable size
+
+    #--- garbage collection
+    ### cleaning up empty SortedQueues from queueByGraceID
+    ### cleaning up queue when there are too many completed items

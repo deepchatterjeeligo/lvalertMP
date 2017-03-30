@@ -1,0 +1,144 @@
+#!/usr/bin/env python
+
+__usage__ = "lvalert_libraryTestsMP [--options]"
+__description__ = """\
+a series of tests to demonstrate functionality of each aspect of lvalertMP including
+
+  - lvalertMPutils
+  - commands
+  - parseAlert
+
+We should also test lvalert_listenMP and lvalert_commandMP (but that is not included in this script).
+We note that interactiveQueue is "tested" in lvalert_sanityChecksMP because it requires human feedback (eg, checking that emails were sent)
+"""
+__author__ = "Reed Essick (reed.essick@ligo.org)"
+
+#-------------------------------------------------
+
+from lvalertMP.lvalert import interactiveQueue
+from lvalertMP.lvalert import commands
+from lvalertMP.lvalert import lvalertMPutils as utils
+from lvalertMP.lvalert import parseAlert
+
+from optparse import OptionParser
+
+#-------------------------------------------------
+
+parser = OptionParser(usage=__usage__, description=__description__)
+
+parser.add_option('-v', '--verbose', default=False, action='store_true')
+parser.add_option('-V', '--Verbose', default=False, action='store_true')
+
+### options about what to test
+parser.add_option('', '--everything', default=False, action='store_true',
+    help='run all tests')
+
+parser.add_option('', '--lvalertMPutils', default=False, action='store_true',
+    help='run tests of lvalretMPutils')
+
+parser.add_option('', '--commands', default=False, action='store_true',
+    help='run tests of commands')
+
+parser.add_option('', '--parseAlert', default=False, action='store_true',
+    help='run tests of parseAlert')
+
+opts, args = parser.parse_args()
+
+#-------------------------------------------------
+
+if opts.lvalertMPutils or opts.everything:
+    if opts.verbose:
+        print( 'testing lvalertMPutils' )
+    raise NotImplementedError
+
+    #--- logging
+    ### utils.genLogname
+    ### utils.genFormatter
+
+    #--- Task
+    ### __init__ (timeout, expiration, kwargs, logTag)
+    ### __str__
+    ### setExpiration
+    ### hasExpired
+    ### execute (will naturally test Task.task)
+    
+    #--- QueueItem
+    ### __init__ (t0, tasks, completedTasks, complete, expiration, logTag)
+    ### __str__
+    ### sortTasks
+    ### setExpiration
+    ### hasExpired
+    ### execute (includes updating self.expiration, self.complete, self.tasks, self.completedTasks)
+    ### add (updating self.tasks and self.expiration)
+    ### remove (updating self.tasks and self.expiration)
+
+    #--- SortedQueue
+    ### __init__ (__queue__, complete)
+    ### __str__
+    ### __iter__
+    ### __len__
+    ### __getitem__
+    ### insert (ensure item is a QueueItem, ordering, updating complete)
+    ### pop (__queue__, updating complete)
+    ### clean (__queue__ and complete)
+    ### resort (__queue__)
+    ### setComplete
+
+#------------------------
+
+if opts.commands or opts.everything:
+    if opts.verbose:
+        print( 'testing commands' )
+    raise NotImplementedError
+
+    #--- CommandTask
+    ### __init__ (queue, queueByGraceID, kwargs with "sleep" as a special case, assertion that we have the right kwargs)
+    ### checkKWargs
+    ### command
+
+    #--- CommandQueueItem
+    ### __init__ (graceid, defining tasks)
+
+    #--- Command
+    ### __init__
+    ### checkObject
+    ### parse
+    ### write
+    ### genQueueItems
+
+    #--- internal lookup
+    ### __cid__, __qid__, __tid__
+    ### initCommand
+    ### knownCommands
+    ### requiredKWargs
+    ### forbiddenKWargs
+
+    #--- parseCommand
+    ### make sure we only respond to uid="command"
+    ### make sure queue, queueByGraceID are updated as expected
+
+    #--- CommandTask functionality
+    ### raiseException
+    ### raiseWarning
+    ### clearQueue
+    ### clearGraceID (requires graceid)
+    ### checkpointQueue (requires filename)
+    ### repeatedCheckpoint (requires filename, sleep
+    ### loadQueue (requires filename)
+    ### printMessage (requires message)
+    ### printQueue (rquires filename)
+
+#------------------------
+
+if opts.parseAlert or opts.everything:
+    if opts.verbose:
+        print( 'testing parseAlert' )
+    raise NotImplementedError
+
+    #--- PrintAlertTask
+    ### __init__ (graceid, alert)
+    ### printAlert
+
+    #--- parseAlert
+    ### instantiation of QueueItem, tasks
+    ### queue and queueByGraceID are modified as expected
