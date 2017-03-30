@@ -17,10 +17,9 @@ class PrintAlertTask(utils.Task):
     name = 'printAlert'
 
     def __init__(self, timeout, graceid, alert, logTag='iQ'):
-        self.logTag = logTag
         self.graceid = graceid
         self.alert = alert
-        super(PrintAlertTask, self).__init__(timeout)
+        super(PrintAlertTask, self).__init__(timeout, logTag=logTag)
 
     def printAlert(self, verbose=False):
         """
