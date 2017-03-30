@@ -74,6 +74,9 @@ class CommandTask(utils.Task):
                 raise KeyError('CommandTask=%s contains forbidden kwarg=%s'%(self.name, kwarg))
 
     def command(self, verbose=False, **kwargs):
+        '''
+        required for syntactic completion
+        '''
         pass
 
 #------------------------
@@ -556,6 +559,8 @@ class PrintMessage(Command):
 
     def __init__(self, **kwargs):
         super(PrintMessage, self).__init__(command_type=self.name, **kwargs)
+
+#------------------------
 
 class SendEmail(Command):
     '''
