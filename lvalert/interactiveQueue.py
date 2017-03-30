@@ -50,20 +50,20 @@ def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxCo
 
     ### set up logger
     ### this logger will capture *everything* that is printed through a child logger
-    logger = logging.getLogger("iQ")
-    logger.setLevel(logLevel) ### NOTE: may want to make this an option in config file
-
-    ### set up handlers
-    #                        into a file      with a predictable filename                to stdout
-    for handler in [logging.FileHandler(utils.genLogname(logDir, process_type+'_'+os.path.basename(config_filename).strip('.ini'))), logging.StreamHandler()]:
-        handler.setFormatter( utils.genFormatter() )
-        logger.addHandler( handler )
-
-    ### set up libraries depending on process_type
     if verbose:
+        logger = logging.getLogger("iQ")
+        logger.setLevel(logLevel) ### NOTE: may want to make this an option in config file
+
+        ### set up handlers
+        #                        into a file      with a predictable filename                to stdout
+        for handler in [logging.FileHandler(utils.genLogname(logDir, process_type+'_'+os.path.basename(config_filename).strip('.ini'))), logging.StreamHandler()]:
+            handler.setFormatter( utils.genFormatter() )
+            logger.addHandler( handler )
+
         logger.info( "using config : %s"%config_filename )
         logger.info( "initializing process_type : %s"%process_type )
 
+    ### set up libraries depending on process_type
     if process_type=="test":
         from parseAlert import parseAlert
 
@@ -98,7 +98,33 @@ def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxCo
             e, t0 = connection.recv()
             if verbose:
                 logger.info( "received : %s"%e )
-            e = json.loads(e)
+
+            try:
+                e = json.loads(e)
+
+            except Exception:
+                trcbk = traceback.format_exc().strip("\n")
+                if verbose:
+                    logger.warn( 'could not parse lvalert payload!' )
+                    logger.warn( trcbk )
+
+                if recipients:
+                    subject = "WARNING: could not parse lvalert payload on %s"%(hostname)
+                    body    = """\
+time (localtime): 
+  %s
+
+lvalert message: 
+  %s
+
+%s
+
+    username : %s
+    hostname : %s
+    config   : %s
+"""%(time.ctime(t0), e, trcbk, username, hostname, config_filename)
+
+                    utils.sendEmail( recipients, body, subject )
 
             ### parse the message and insert the appropriate item into the queuie
             try:
@@ -229,7 +255,7 @@ This is warning number : %d
                     warnCount = 1 ### set this to a positive number so we'll get a recover notice in the log
 
                 if verbose:
-                    logger.warn( "len(queue)=%d <= %d=warnThr; emails sent to : %s"%(len(queue), warnThr, ", ".join(recipients)) )
+                    logger.warn( "len(queue)=%d >= %d=warnThr; emails sent to : %s"%(len(queue), warnThr, ", ".join(recipients)) )
 
                 warnTime = time.time()+warnDelay ### update time when we'll send the next warning
 
