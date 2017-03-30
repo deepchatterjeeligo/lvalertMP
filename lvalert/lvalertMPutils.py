@@ -182,7 +182,7 @@ class Task(object):
         """
         return getattr(self, self.name)( verbose=verbose, **self.kwargs )
 
-    def task(verbose=False, **kwargs):
+    def task(self, verbose=False, **kwargs):
         """
         dummy function required for syntax of this object
         """
