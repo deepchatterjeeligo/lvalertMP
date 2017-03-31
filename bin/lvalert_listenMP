@@ -331,6 +331,10 @@ if opts.config_file:
             verbose = cp.getboolean(mp_child_name, "verbose")
         else:
             verbose = False
+        if cp.has_option(mp_child_name, "print2stdout"):
+            print2stdout = cp.getboolean(mp_child_name, "print2stdout")
+        else:
+            print2stdout = False
         if cp.has_option(mp_child_name, "sleep"):
             sleep = cp.getfloat(mp_child_name, "sleep")
         else:
@@ -365,7 +369,7 @@ if opts.config_file:
             maxWarn = 24
 
         ### fork the process
-        proc, conn = fork( (iq.interactiveQueue, [childConfig, verbose, sleep, maxComplete, maxFrac, warnThr, recipients, warnDelay, maxWarn]) )
+        proc, conn = fork( (iq.interactiveQueue, [childConfig, verbose, sleep, maxComplete, maxFrac, warnThr, recipients, warnDelay, maxWarn, print2stdout]) )
         procs[mp_child_name] = (proc, conn)
 
         for node in cp.get(mp_child_name, "nodes").split(): ### iterate over nodes and add them to this process
