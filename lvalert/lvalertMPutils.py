@@ -277,6 +277,7 @@ class QueueItem(object):
             self.tasks.append( task )
 
         self.sortTasks() ### ensure tasks are sorted
+        self.complete = len(self.tasks)
 
     def remove(self, taskName):
         """
@@ -285,10 +286,14 @@ class QueueItem(object):
         """
         for ind, task in enumerate(self.tasks):
             if task.name==taskName:
-                return self.tasks.pop( ind )
-            if len(self.tasks):
-                self.expiration = self.tasks[0].expiration
-            else:
-                self.expiration = -np.infty
+                task = self.tasks.pop( ind )
+
+                if len(self.tasks):
+                    self.expiration = self.tasks[0].expiration
+                else:
+                    self.expiration = -np.infty
+                    self.complete = True
+
+                return task
         else:
             raise KeyError('could not find a task with name=%s'%(taskName))
