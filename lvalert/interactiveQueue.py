@@ -22,7 +22,7 @@ import traceback
 
 #---------------------------------------------------------------------------------------------------
 
-def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxComplete=100, maxFrac=0.5, warnThr=1e3, recipients=[], warnDelay=3600, maxWarn=24):
+def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxComplete=100, maxFrac=0.5, warnThr=1e3, recipients=[], warnDelay=3600, maxWarn=24, print2stdout=False):
     """
     a simple function that manages a queue
 
@@ -55,8 +55,12 @@ def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxCo
         logger.setLevel(logLevel) ### NOTE: may want to make this an option in config file
 
         ### set up handlers
-        #                        into a file      with a predictable filename                to stdout
-        for handler in [logging.FileHandler(utils.genLogname(logDir, process_type+'_'+os.path.basename(config_filename).strip('.ini'))), logging.StreamHandler()]:
+        # into a file with a predictable filename
+        handlers = [logging.FileHandler(utils.genLogname(logDir, process_type+'_'+os.path.basename(config_filename).strip('.ini')))]
+        if print2stdout:
+            handlers.append(logging.StreamHandler())
+
+        for handler in handlers:
             handler.setFormatter( utils.genFormatter() )
             logger.addHandler( handler )
 
@@ -127,18 +131,20 @@ lvalert message:
                     utils.sendEmail( recipients, body, subject )
 
             ### parse the message and insert the appropriate item into the queuie
-            try:
-                parseAlert( queue, queueByGraceID, e, t0, config )
+            ### only do this if "e" was successfully parsed into a dictionary
+            if isinstance(e, dict):
+                try:
+                    parseAlert( queue, queueByGraceID, e, t0, config )
 
-            except Exception:
-                trcbk = traceback.format_exc().strip("\n")
-                if verbose:
-                    logger.warn( 'parseAlert raised an exception!' )
-                    logger.warn( trcbk )
+                except Exception:
+                    trcbk = traceback.format_exc().strip("\n")
+                    if verbose:
+                        logger.warn( 'parseAlert raised an exception!' )
+                        logger.warn( trcbk )
 
-                if recipients:
-                    subject = "WARNING: parseAlert caught an exception on %s"%(hostname)
-                    body    = """\
+                    if recipients:
+                        subject = "WARNING: parseAlert caught an exception on %s"%(hostname)
+                        body    = """\
 time (localtime): 
   %s
 
@@ -152,7 +158,7 @@ lvalert message:
     config   : %s
 """%(time.ctime(t0), json.dumps(e), trcbk, username, hostname, config_filename)
 
-                    utils.sendEmail( recipients, body, subject )
+                        utils.sendEmail( recipients, body, subject )
 
         ### remove any completed tasks from the front of the queue
         while len(queue) and queue[0].complete: ### skip all things that are complete already
@@ -266,7 +272,7 @@ This is warning number : %d
             if recipients: ### send RECOVERY notice
                 subject = "RECOVERY: SortedQueue has shortened on %s"%(hostname)
                 body    = """RECOVERY:
-interactiveQueue contains SortedQueue with fewer than %d elements (len(queue)=%d
+interactiveQueue contains SortedQueue with fewer than %d elements (len(queue)=%d)
     username : %s
     hostname : %s
     config   : %s
