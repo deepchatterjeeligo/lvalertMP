@@ -277,7 +277,7 @@ class QueueItem(object):
             self.tasks.append( task )
 
         self.sortTasks() ### ensure tasks are sorted
-        self.complete = len(self.tasks)
+        self.complete = len(self.tasks) == 0
 
     def remove(self, taskName):
         """
@@ -291,7 +291,7 @@ class QueueItem(object):
                 if len(self.tasks):
                     self.expiration = self.tasks[0].expiration
                 else:
-                    self.expiration = -np.infty
+                    self.expiration = -infty
                     self.complete = True
 
                 return task
