@@ -20,6 +20,10 @@ from lvalertMP.lvalert import commands
 from lvalertMP.lvalert import lvalertMPutils as utils
 from lvalertMP.lvalert import parseAlert
 
+import time
+
+import numpy as np
+
 from optparse import OptionParser
 
 #-------------------------------------------------
@@ -44,52 +48,284 @@ parser.add_option('', '--parseAlert', default=False, action='store_true',
 
 opts, args = parser.parse_args()
 
+opts.verbose = opts.Verbose or opts.verbose
+
 #-------------------------------------------------
 
 if opts.lvalertMPutils or opts.everything:
     if opts.verbose:
         print( 'testing lvalertMPutils' )
-    raise NotImplementedError
 
     #--- logging
     ### utils.genLogname
+    logname = utils.genLogname( 'fakedir', 'faketag' )
+    assert isinstance(logname, str), 'lvalertMPutils.genLogname did not return a string'
+    assert logname[-4:]=='.log', 'lvalertMPutils.genLogname returned a string that did not end in \".log\"'
+    if opts.Verbose:
+        print( '    lvalertMPutils.genLogname passed all tests successfully' )
+
     ### utils.genFormatter
+    formatter = utils.genFormatter()
+    assert isinstance(formatter, utils.logging.Formatter), 'lvalertMPutils.genFormatter returned the wrong type : %s'%(type(formatter))
+    if opts.Verbose:
+        print( '    lvalertMPutils.genFormatter passed all tests successfully' )
 
     #--- Task
+    timeout = 10
+    kwargs = {'example':'kwarg'}
+    logTag = __file__
+
     ### __init__ (timeout, expiration, kwargs, logTag)
+    task = utils.Task(timeout, logTag=logTag, **kwargs)
+    assert task.timeout == timeout, 'Task.timeout is not set correctly'
+    assert task.expiration == None, 'Task.expiration is not set correctly'
+    assert task.logTag == logTag, 'Task.logTag is not set correctly'
+    for key, value in kwargs.items():
+        assert task.kwargs.has_key(key) and task.kwargs[key]==value, 'Task.kwargs is not set correctly'
+
     ### __str__
+    string = str(task)
+    assert task.name in string, 'Task.name not in str(Task)'
+    assert task.description in string, 'Task.description not in str(Task)'
+
     ### setExpiration
+    t0 = time.time()
+    task.setExpiration(t0)
+    assert task.expiration == t0+timeout, 'Task.expiration not set correctly by Task.setExpiration'
+
     ### hasExpired
+    assert not task.hasExpired(), 'task expired too quickly' ### this is a bit fragile because I'm assuming timeout is not too small...
+    wait = task.expiration-time.time()
+    if opts.Verbose:
+        print( '    waiting %.3f seconds so Task can expire'%wait )
+    time.sleep(wait)
+    assert task.hasExpired(), 'task did not expire quickly enough'
+
     ### execute (will naturally test Task.task)
-    
+    task.execute() ### if this succeeds, then the test succeeds
+
+    if opts.Verbose:
+        print( '    lvalertMPutils.Task passed all tests successufully' )
+
     #--- QueueItem
+    t0 = time.time()
+
     ### __init__ (t0, tasks, completedTasks, complete, expiration, logTag)
+    for tasks in [[], [utils.Task(100), utils.Task(10), utils.Task(15), utils.Task(16)]]:
+        item = utils.QueueItem(t0, tasks=tasks, logTag=logTag)
+        tasks.sort(key=lambda t: t.timeout) ### rearrange this as we expect QueueItem to do
+        assert item.t0 == t0, 'lvalertMPutils.QueueItem.t0 not set correctly'
+        assert len(item.tasks)==len(tasks), 'QueueItem.tasks not set correctly'
+        for task in tasks:
+            assert task.expiration == t0+task.timeout, 'QueueItem did not set task\'s expirations correctly'
+        assert item.tasks==tasks, 'QueueItem.tasks do not match expected order'
+        assert len(item.completedTasks)==0, 'QueueItem.completedTasks not set correctly'
+        assert item.complete==(len(tasks)==0), 'QueueItem.complete not set correctly'
+        if tasks:
+            assert item.expiration==tasks[0].expiration, 'QueueItem.expiration not set correctly'
+        else:
+            assert item.expiration==-np.infty, 'QueueItem.expiration expiratoin not set correctly when there are no tasks'
+        assert item.logTag==logTag, 'QueueItem.logTag not set correctly'
+
     ### __str__
+    string = str(item)
+    assert item.name in string, 'QueueItem.name not in str(QueueItem)'
+    assert item.description in string, 'QueueItem.description not in str(QueueItem)'
+
     ### sortTasks
+    item.tasks.sort(key=lambda t: t.expiration, reverse=True) ### mess up sorting so we can test this
+    item.sortTasks()
+    for a, b in zip(item.tasks, tasks):
+        assert a==b, 'QueueItem.sortTasks did not produce the proper ordering'
+
     ### setExpiration
+    t0 = time.time()
+    completedTasks = [utils.Task(0)]
+    for task in completedTasks:
+        item.completedTasks.append( task ) ### setExpiration should not touch this
+    item.setExpiration(t0)
+    assert len(item.tasks)==len(tasks), 'QueueItem.setExpiration modified length of item.tasks'
+    for task in item.tasks:
+        assert task.expiration==t0+task.timeout, 'QueueItem.setExpiration did not update task.expiration times correctly'
+    assert item.expiration == tasks[0].expiration, 'QueueItem.setExpiration dit not update item.expiration corretly'
+    assert len(item.completedTasks)==len(completedTasks), 'QueueItem.setExpiration modified length of item.completedTasks'
+    assert item.completedTasks==completedTasks, 'QueueItem.setExpiration modified elements of item.completedTasks'
+    for task in completedTasks:
+        assert task.expiration==None, 'QueueItem.setExpiration modified expiration of elements of item.completedTasks'
+
     ### hasExpired
+    t0 = time.time()
+    item.setExpiration(t0)
+    assert not item.hasExpired(), 'QueueItem expired too quickly'
+    wait = item.expiration-time.time()
+    if opts.Verbose:
+        print( '    waiting %.3f seconds for QueueItem to expire'%wait )
+    time.sleep(wait)
+    assert item.hasExpired(), 'QueueItem did not expire quickly enough'
+
     ### execute (includes updating self.expiration, self.complete, self.tasks, self.completedTasks)
+    t0 = time.time()
+    item.setExpiration(t0)
+    expiration = item.expiration
+    item.execute() ### should do nothing 
+    assert item.tasks==tasks, 'QueueItem.execute modified item.tasks before it expired'
+    assert item.completedTasks==completedTasks, 'QueueItem.execute modified item.completedTasks before it expired'
+    assert item.expiration==expiration, 'QueueItem.execute modified item.expiration before it expired'
+    assert item.complete==(len(tasks)==0), 'QueueItem.execute modified item.complete before it expired'
+
+    wait = item.expiration-time.time()
+    if opts.Verbose:
+        print( '    waiting %.3f seconds for QueueItem to expire'%wait )
+    time.sleep(item.expiration-time.time())
+    item.execute() ### should do something
+    assert item.tasks!=tasks, 'QueueItem.execute did not modify tasks as expected'
+    assert len(item.tasks)==len(tasks)-1, 'QueueItem.execute did not perform only a single task'
+    assert item.completedTasks!=completedTasks, 'QueueItem.execute did not modify completedTasks as expected'
+    assert len(item.completedTasks)==len(completedTasks)+1, 'QueueItem.execute did not move only a single task to completedTasks'
+    assert item.completedTasks[-1]==tasks[0], 'QueueItem.execute did not perform and move the expected task'
+    assert item.expiration!=expiration, 'QueueItem.execute did not modify item.expiration as expected'
+    assert item.expiration==item.tasks[0].expiration, 'QueueItem did not modify item.expiration as expected'
+
+    tasks = [task for task in item.tasks] ### create a new list object to avoid shared references
+    completedTasks = [task for task in item.completedTasks] ### create a new list object to avoid shared references
+    wait = item.tasks[1].expiration-time.time() ### sleep until we've let the next 2 tasks expire
+    if opts.Verbose:
+        print( '    waiting %.3f seconds for the next 2 Tasks to expire'%wait )
+    time.sleep(wait)
+    item.execute() ### should peform 2 tasks
+    assert len(item.tasks)==len(tasks)-2, 'QueueItem.execute did not peform 2 tasks as expected'
+    assert len(item.completedTasks)==len(completedTasks)+2, 'QueueItem.execute did not move 2 tasks as expected'
+    assert item.expiration==tasks[2].expiration, 'QueueItem.execute did not update expiration as expected'
+
     ### add (updating self.tasks and self.expiration)
+    tasks = [task for task in item.tasks]
+    completedTasks = [task for task in item.completedTasks]
+    task = 'cat' ### note, *not* an instance of QueueItem
+    try:
+        item.add(task)
+        raise AssertionError, 'QueueItem.add did not raise a ValueError when supplied a bad data type'
+    except ValueError:
+        pass
+    newTasks = [utils.Task(500), utils.Task(5)]
+    newTasks[0].setExpiration(time.time())
+    combinedTasks = newTasks + tasks
+    combinedTasks.sort(key=lambda t: t.expiration if t.expiration!=None else item.t0+t.timeout) ### sort into the expect format
+    taskExpiration = newTasks[0].expiration
+    itemExpiration = item.expiration
+
+    item.add(newTasks)
+    assert len(item.tasks)==len(combinedTasks), 'QueueItem.add did not insert newTasks correctly'
+    assert newTasks[0].expiration==taskExpiration, 'QueueItem.add modified a task\'s expiration when it was already set'
+    assert newTasks[1].expiration==item.t0+newTasks[1].timeout, 'QueueItem.add did not set a task\'s expiration when it was not already set'
+    
+    assert item.expiration==newTasks[1].expiration, 'QueueItem.add did not update item.expiration as it should have'
+    assert item.tasks[0]==combinedTasks[0], 'QueueItem.add did not place the expected task in the right place'
+    assert not item.complete, 'QueueItem.add modified item.complete unexpectedly'
+
+    item.complete=True
+    item.add(utils.Task(np.infty))
+    assert not item.complete, 'QueueItem.add did not reset item.complete=False as expected'
+    item.tasks.pop(-1) ### remove this so it doesn't mess anything else up
+
     ### remove (updating self.tasks and self.expiration)
+    try:
+        item.remove('cat')
+        raise AssertionError, 'QueueItem.remove did not raise a KeyError when it was given a TaskName that was not in item.tasks'
+    except KeyError:
+        pass
+
+    item.remove('task')
+    assert len(item.tasks)==len(combinedTasks)-1, 'QueueItem.remove did not modify item.tasks\'s length as expected'
+    assert item.completedTasks==completedTasks, 'QueueItem.remove modified completedTasks'
+    assert item.expiration==combinedTasks[1].expiration, 'QueueItem.remove did not modify expiration as expected'
+    assert not item.complete, 'QueueItem.remove unexpectedly set item.complete=True'
+
+    while len(item.tasks):
+        item.remove(item.tasks[0].name)
+    assert item.expiration==-np.infty, 'QueueItem.remove did not set expiration to -infty when it ran out of tasks'
+    assert item.complete, 'QueueItem.remove did not set item.complet=True when it ran out of tasks'
+
+    if opts.Verbose:
+        print( '    lvalertMPutils.Queue passed all tests successufully' )
 
     #--- SortedQueue
+
     ### __init__ (__queue__, complete)
+    queue = utils.SortedQueue()
+    assert queue.__queue__==[], 'SortedQueue.__queue__ was not empty upon instantiation'
+    assert queue.complete==0, 'SortedQueue.complete was not instantiated correctly'
+
     ### __str__
+    string = str(queue) ### is this does not raise an error, we pass this test
+
     ### __iter__
+    for item in queue: ### this will ensure the object is iterable
+        pass 
+
     ### __len__
-    ### __getitem__
+    len(queue) ### this will ensure the object has a __len__
+
     ### insert (ensure item is a QueueItem, ordering, updating complete)
+    item = 'cat'
+    try:
+        queue.insert( item )
+        raise AssertionError, 'SortedQueue.insert did not raise a ValueError when given something besides a QueueItem'
+    except ValueError:
+        pass
+    t0 = time.time()
+    items = [
+        utils.QueueItem(t0, []), ### expiration will be -np.infty
+        utils.QueueItem(t0, [utils.Task(10)]),
+        utils.QueueItem(t0, [utils.Task(5)])
+    ]
+    for item in items:
+        queue.insert( item )
+    items.sort(key=lambda i:i.expiration)
+    assert queue.__queue__==items, 'SortedQueue did not order items correctly'
+    assert queue.complete==sum([item.complete for item in items]), 'SortedQueue.insert did not manage queue.complete correctly'
+
+    ### __getitem__
+    item = queue[0] ### this ensures the queue has a __getitem__ that behaves like we want
+    
     ### pop (__queue__, updating complete)
-    ### clean (__queue__ and complete)
+    complete = queue.complete
+    for ind in xrange(len(queue)):
+        item = queue[ind]
+        assert item==queue.pop(ind), 'SortedQueue.pop did not return the correct item'
+        assert queue.complete==complete-item.complete, 'SortedQueue.pop did not manage queue.complete correctly'
+        queue.insert( item )
+       
     ### resort (__queue__)
+    queue.__queue__.append(queue.__queue__.pop(0)) ### intentionally mess up the ordering
+    queue.resort()
+    for i in xrange(len(queue)-1):
+        assert queue[i].expiration<=queue[i+1].expiration, 'SortedQueue.resort did not sort the items correctly'
+    assert queue.complete==complete, 'SortedQueue.resort modified queue.complete'
+
     ### setComplete
+    queue.complete += 1 ### intentionally mess this up
+    queue.setComplete() 
+    assert queue.complete==complete, 'SortedQueue.setComplete did not correctly set queue.complete'
+    assert queue.__queue__==items, 'SortedQueue.setComplete messed up queue.__queue__'
+
+    ### clean (__queue__ and complete)
+    queue.clean()
+    items = [item for item in items if not item.complete]
+    for item in queue:
+        assert not item.complete, 'SortedQueue.clean did not remove all complete items'
+    assert queue.complete==0, 'SortedQueue.clean did not set queue.complete correctly'
+    assert queue.__queue__==items, 'SortedQueue.clean did not return the expected list of items'
+
+    if opts.Verbose:
+        print( '    lvalertMPutils.Task passed all tests successufully' )
+        print( 'lvalertMPutils passed all tests successfully' )
 
 #------------------------
 
 if opts.commands or opts.everything:
     if opts.verbose:
         print( 'testing commands' )
-    raise NotImplementedError
+    raise NotImplementedError, 'implement tests for commands'
 
     #--- CommandTask
     ### __init__ (queue, queueByGraceID, kwargs with "sleep" as a special case, assertion that we have the right kwargs)
@@ -133,7 +369,7 @@ if opts.commands or opts.everything:
 if opts.parseAlert or opts.everything:
     if opts.verbose:
         print( 'testing parseAlert' )
-    raise NotImplementedError
+    raise NotImplementedError, 'implement tests for parseAlert'
 
     #--- PrintAlertTask
     ### __init__ (graceid, alert)
