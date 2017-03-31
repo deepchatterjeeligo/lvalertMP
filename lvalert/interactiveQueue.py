@@ -132,7 +132,7 @@ lvalert message:
 
             ### parse the message and insert the appropriate item into the queuie
             ### only do this if "e" was successfully parsed into a dictionary
-            if isinstance(e, dict):
+            else:
                 try:
                     parseAlert( queue, queueByGraceID, e, t0, config )
 
