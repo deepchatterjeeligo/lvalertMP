@@ -308,7 +308,7 @@ class LoadQueueTask(CommandTask):
                     self.queueByGraceID[graceid].insert( item )
 
             else: ### no SortedQueue exists, so just use this one
-                self.queueByGraceID[item.graceid] = queue
+                self.queueByGraceID[graceid] = queue
 
 #------------------------
 
