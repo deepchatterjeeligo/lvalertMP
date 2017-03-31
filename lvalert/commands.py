@@ -183,7 +183,7 @@ class ClearGraceIDTask(CommandTask):
         empties all QueueItems associated with graceid (required kwarg) from queueByGraceID. 
         Marks these as complete so they are ignored within queue.
         '''
-        graceid = kwargs['graceid'] ### must be a key of queueByGraceID because this QueueItem has that as an attribute
+        graceid = self.kwargs['graceid'] ### must be a key of queueByGraceID because this QueueItem has that as an attribute
         ### do NOT remove key, but only iterate over all the other items
         ### the first item (0) MUST be a pointer to this Task's QueueItem, which we leave in
         ### it will be handled within interactiveQueue
@@ -219,9 +219,10 @@ class CheckpointQueueTask(CommandTask):
         WARNING: we may want to gzip or somehow compress the pickle files produced. We'd need to mirror this within loadQueue.
         '''
         import pickle
-        filename = kwargs['filename']
+        filename = self.kwargs['filename']
         file_obj = open(filename, 'w')
         pickle.dump( self.queue, file_obj ) 
+        pickle.dump( self.queueByGraceID, file_obj )
         file_obj.close()
 
 #------------------------
@@ -255,9 +256,10 @@ class RepeatedCheckpointTask(CommandTask):
         WARNING: we may want to gzip or somehow compress the pickle files produced. We'd need to mirror this within loadQueue.
         '''
         import pickle
-        filename = kwargs['filename']
+        filename = self.kwargs['filename']
         file_obj = open(filename, 'w')
         pickle.dump( self.queue, file_obj )
+        pickle.dump( self.queueByGraceID, file_obj )
         file_obj.close()
 
         self.setExpiration(self.expiration) ### update expiration -> self.expiration+self.sleep
@@ -290,18 +292,23 @@ class LoadQueueTask(CommandTask):
         '''
         ### load queue from pickle file
         import pickle
-        filename = kwargs['filename']
+        filename = self.kwargs['filename']
         file_obj = open(filename, 'r')
         queue = pickle.load(file_obj)
+        queueByGraceID = pickle.load(file_obj)
         file_obj.close()
 
         ### iterate through queue and add it into self.queue and self.queueByGraceID
         for item in queue:
             self.queue.insert( item )
-            if hasattr(item, 'graceid'):
-                if not self.queueByGraceID.has_key(item.graceid): ### need to make a SortedQueue for this graceid
-                    self.queueByGraceID[item.graceid] = utils.SortedQueue()
-                self.queueByGraceID[item.graceid].insert( item )
+
+        for graceid, queue in queueByGraceID.items():
+            if self.queueByGraceID.has_key(graceid): ### SortedQueue already exists, so insert into it
+                for item in queue:
+                    self.queueByGraceID[graceid].insert( item )
+
+            else: ### no SortedQueue exists, so just use this one
+                self.queueByGraceID[item.graceid] = queue
 
 #------------------------
 
@@ -333,7 +340,7 @@ class PrintMessageTask(CommandTask):
         logger.addHandler( handler )
 
         ### print to logger
-        logger.info( kwargs['message'] )
+        logger.info( self.kwargs['message'] )
 
 #------------------------
 
@@ -360,9 +367,9 @@ class SendEmailTask(CommandTask):
         '''
         if verbose:
             logger = logging.getLogger('%s.%s'%(self.logTag,self.name)) ### want this to redirect to interactiveQueue's logger
-            logger.info( 'sending email to %s'%kwargs['recipients'] )
+            logger.info( 'sending email to %s'%self.kwargs['recipients'] )
 
-        utils.sendEmail( kwargs['recipients'].split(), kwargs['body'], kwargs['subject'] )
+        utils.sendEmail( self.kwargs['recipients'].split(), self.kwargs['body'], self.kwargs['subject'] )
 
 #------------------------
 
@@ -392,9 +399,9 @@ class PrintQueueTask(CommandTask):
         '''
         if verbose: ### print set up logger
             logger = logging.getLogger('%s.%s'%(self.logTag,self.name)) ### want this to redirect to interactiveQueue's logger
-            logger.info( 'printing Queue to %s'%kwargs['filename'] )
+            logger.info( 'printing Queue to %s'%self.kwargs['filename'] )
 
-        filename = kwargs['filename']
+        filename = self.kwargs['filename']
         useSTDOUT = filename=='STDOUT'
         useSTDERR = filename=='STDERR'
         if useSTDOUT:
