@@ -153,7 +153,7 @@ class Task(object):
         self.logTag = logTag ### used to set up logger
 
     def __str__(self):
-        return "Task{%s : %s, expiration=%.3f}"%(self.name, self.description, self.expiration)
+        return "Task{%s : %s, expiration=%s}"%(self.name, self.description, '%.3f'%self.expiration if self.expiration!=None else 'None')
 
     def setExpiration(self, t0):
         """
