@@ -318,6 +318,8 @@ if opts.lvalertMPutils or opts.everything:
 
     if opts.Verbose:
         print( '    lvalertMPutils.Task passed all tests successufully' )
+
+    if opts.verbose:
         print( 'lvalertMPutils passed all tests successfully' )
 
 #------------------------
@@ -325,56 +327,146 @@ if opts.lvalertMPutils or opts.everything:
 if opts.commands or opts.everything:
     if opts.verbose:
         print( 'testing commands' )
-    raise NotImplementedError, 'implement tests for commands'
 
     #--- CommandTask
+    queue = SortedQueue()
+    queueByGraceID = dict()
+
     ### __init__ (queue, queueByGraceID, kwargs with "sleep" as a special case, assertion that we have the right kwargs)
+    #       instantiate objects both with and withough sleep kwarg. Then check timeout.
+    raise NotImplementedError
+
     ### checkKWargs
+    #       modify required_kwargs and forbidden_kwargs dynamically to check functionality
+    raise NotImplementedError
+
     ### command
+    #       confirm that this runs without raising exceptions 
+    raise NotImplementedError
+
+    if opts.Verbose:
+        print( '    commands.CommandTask passed all tests successfully' )
 
     #--- CommandQueueItem
-    ### __init__ (graceid, defining tasks)
+
+    ### __init__ (graceid, defining tasks, kwargs with "graceid" as a special case)
+    #       instantiate objects both within and without graceid kwarg. Then check attributes
+    #       ensure commandTasks is correctly built and included within this item
+    raise NotImplementedError
+
+    if opts.Verbose:
+        print( '    commands.CommandQueueItem passed all tests successfully' )
 
     #--- Command
+
     ### __init__
     ### checkObject
+    #       modify required_ and forbidden_kwargs dynamically to check functionality
+    raise NotImplementedError
+
     ### parse
+    raise NotImplementedError
+
     ### write
+    raise NotImplementedError
+
     ### genQueueItems
+    raise NotImplementedError
+
+    if opts.Verbose:
+        print( '    commands.Command passed all tests successfully' )
 
     #--- internal lookup
+
     ### __cid__, __qid__, __tid__
+    raise NotImplementedError
+
     ### initCommand
+    raise NotImplementedError
+
     ### knownCommands
+    raise NotImplementedError
+
     ### requiredKWargs
+    raise NotImplementedError
+
     ### forbiddenKWargs
+    raise NotImplementedError
+
+    if opts.Verbose:
+        print( '    commands internal lookup passed all tests successfully' )
 
     #--- parseCommand
+
     ### make sure we only respond to uid="command"
     ### make sure queue, queueByGraceID are updated as expected
+    raise NotImplementedError
+
+    if opts.Verbose:
+        print( '    commands.parseCommand passed all tests successfully' )
 
     #--- CommandTask functionality
+
     ### raiseException
+    raise NotImplementedError
+
     ### raiseWarning
+    raise NotImplementedError
+
     ### clearQueue
+    raise NotImplementedError
+
     ### clearGraceID (requires graceid)
+    raise NotImplementedError
+
     ### checkpointQueue (requires filename)
+    raise NotImplementedError
+
     ### repeatedCheckpoint (requires filename, sleep
+    raise NotImplementedError
+
     ### loadQueue (requires filename)
+    raise NotImplementedError
+
     ### printMessage (requires message)
+    raise NotImplementedError
+
     ### printQueue (rquires filename)
+    raise NotImplementedError
+
+    if opts.Verbose:
+        print( '    commands functionality passed all tests successfully' )
+
+    if opts.verbose:
+        print( 'commands passed all tests successfully' )
 
 #------------------------
 
 if opts.parseAlert or opts.everything:
     if opts.verbose:
         print( 'testing parseAlert' )
-    raise NotImplementedError, 'implement tests for parseAlert'
 
     #--- PrintAlertTask
+
     ### __init__ (graceid, alert)
+    raise NotImplementedError
+
     ### printAlert
+    raise NotImplementedError
+
+    if opts.Verbose:
+        print( '    parseAlert.PrintAlertTask passed all tests successfully' )
 
     #--- parseAlert
+
     ### instantiation of QueueItem, tasks
+    raise NotImplementedError
+
     ### queue and queueByGraceID are modified as expected
+    raise NotImplementedError
+
+    if opts.Verbose:
+        print( '    parseAlert.parseAlert passed all tests successfully' )
+
+    if opts.verbose:
+        print ('parseAlert passed all tests successfully' )
