@@ -429,11 +429,12 @@ class Command(object):
     '''
     name = 'command'
 
-    def __init__(self, command_type='command', **kwargs):
+    def __init__(self, **kwargs):
         self.data = { 'uid'        : 'command',
-                      'alert_type' : command_type,
+                      'alert_type' : self.name,
                       'object'     : kwargs,
                     }
+        self.checkObject()
 
     def checkObject(self):
         '''
@@ -442,10 +443,14 @@ class Command(object):
         also checks to make sure that no forbidden_kwarg is present.
         if one is, we raise a KeyError
         '''
+        if not __tid__.has_key(self.name):
+            raise KeyError, 'Command=%s is not known!'%self.name
+
         kwargs = self.data['object']
         for kwarg in __tid__[self.name].required_kwargs: ### check to make sure we have everyting we need
             if not kwargs.has_key(kwarg):
                 raise KeyError('Command=%s is missing required kwarg=%s'%(self.name, kwarg))
+
         for kwarg in __tid__[self.name].forbidden_kwargs: ### check to make sure we don't have anything forbidden
             if kwargs.has_key(kwarg):
                 raise KeyError('Command=%s contains forbidden kwarg=%s'%(self.name, kwarg))
@@ -455,10 +460,17 @@ class Command(object):
         parse a json dictionary from an alert and store data locally
         '''
         if alert['alert_type']==self.name:
+            current = self.data
             self.data = alert
+            try:
+                self.checkObject() ### ensure we have all the kwargs we need
+
+            except KeyError as e:
+                self.data = current # restore the previous data so we don't lose it
+                raise KeyError, 'failed to parse %s into Command=%s'%(json.dumps(alert), self.name)
+
         else:
             raise ValueError('cannot parse an command with alert_type=%s within command=%s'%(alert['alert_type'], self.name))
-        self.checkObject() ### ensure we have all the kwargs we need
 
     def write(self):
         '''
@@ -483,9 +495,6 @@ class RaiseException(Command):
     '''
     name = 'raiseException'
 
-    def __init__(self, **kwargs):
-        super(RaiseException, self).__init__(command_type=self.name, **kwargs)
-
 #------------------------
 
 class RaiseWarning(Command):
@@ -493,9 +502,6 @@ class RaiseWarning(Command):
     raise a Warning
     '''
     name = 'raiseWarning'
-
-    def __init__(self, **kwargs):
-        super(RaiseWarning, self).__init__(command_type=self.name, **kwargs)
 
 #------------------------
 
@@ -505,9 +511,6 @@ class ClearQueue(Command):
     '''
     name = 'clearQueue'
 
-    def __init__(self, **kwargs):
-        super(ClearQueue, self).__init__(command_type=self.name, **kwargs)
-
 #------------------------
 
 class ClearGraceID(Command):
@@ -515,9 +518,6 @@ class ClearGraceID(Command):
     empties the queue of all items associated with this GraceID
     '''
     name = 'clearGraceID'
-
-    def __init__(self, **kwargs):
-        super(ClearGraceID, self).__init__(command_type=self.name, **kwargs)
 
 #------------------------
 
@@ -529,9 +529,6 @@ class CheckpointQueue(Command):
     '''
     name = 'checkpointQueue'
 
-    def __init__(self, **kwargs):
-        super(CheckpointQueue, self).__init__(command_type=self.name, **kwargs)
-
 #------------------------
 
 class RepeatedCheckpoint(Command):
@@ -542,9 +539,6 @@ class RepeatedCheckpoint(Command):
     '''
     name = "repeatedCheckpoint"
 
-    def __init__(self, **kwargs):
-        super(RepeatedCheckpoint, self).__init__(command_type=self.name, **kwargs)
-
 #------------------------
 
 class LoadQueue(Command):
@@ -552,9 +546,6 @@ class LoadQueue(Command):
     load a representation fo the queue from disk
     '''
     name = 'loadQueue'
-
-    def __init__(self, **kwargs):
-        super(LoadQueue, self).__init__(command_type=self.name, **kwargs)
 
 #------------------------
 
@@ -564,9 +555,6 @@ class PrintMessage(Command):
     '''
     name = 'printMessage'
 
-    def __init__(self, **kwargs):
-        super(PrintMessage, self).__init__(command_type=self.name, **kwargs)
-
 #------------------------
 
 class SendEmail(Command):
@@ -575,9 +563,6 @@ class SendEmail(Command):
     '''
     name = 'sendEmail'
 
-    def __init__(self, **kwargs):
-        super(SendEmail, self).__init__(command_type=self.name, **kwargs)
-
 #------------------------
 
 class PrintQueue(Command):
@@ -585,9 +570,6 @@ class PrintQueue(Command):
     print queue and queueByGraceID
     '''
     name = 'printQueue'
-
-    def __init__(self, **kwargs):
-        super(PrintQueue, self).__init__(command_type=self.name, **kwargs)
 
 #-------------------------------------------------
 # define useful variables
@@ -670,8 +652,8 @@ def parseCommand( queue, queueByGraceID, alert, t0, logTag='iQ' ):
     ### set up logger
     logger = logging.getLogger('%s.parseCommand'%logTag) ### want this to propagate to interactiveQueue's logger
 
-    cmd = initCommand( alert['alert_type'] ) ### instantiate the Command object
-    cmd.parse( alert ) ### parse the alert message
+    cmd = initCommand( alert['alert_type'], **alert['object'] ) ### instantiate the Command object
+#    cmd.parse( alert ) ### parse the alert message
 
     for item in cmd.genQueueItems(queue, queueByGraceID, t0, logTag=logTag): ### add items to the queue
         queue.insert( item )
