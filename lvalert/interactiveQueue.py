@@ -22,6 +22,70 @@ import traceback
 
 #---------------------------------------------------------------------------------------------------
 
+### set up email warning templates
+
+lvalert_subject = "WARNING: could not parse lvalert payload on %s"
+lvalert_body    = """\
+time (localtime): 
+  %s
+
+lvalert message: 
+  %s
+
+%s
+
+    username : %s
+    hostname : %s
+    config   : %s
+"""
+
+parseAlert_subject = "WARNING: parseAlert caught an exception on %s"
+parseAlert_body    = """\
+time (localtime): 
+  %s
+
+lvalert message: 
+  %s
+
+%s
+
+    username : %s
+    hostname : %s
+    config   : %s
+"""
+execute_subject = "WARNING: %s.execute caught an exception on %s"
+execute_body    = """\
+time (localtime): 
+  %s
+
+QueueItem = %s: 
+  %s
+
+%s
+
+    username : %s
+    hostname : %s
+    config   : %s
+
+QueueItem marked complete to avoid repeated errors.
+"""
+warning_subject = "WARNING: queue is too long on %s"
+warning_body    = """WARNING:
+interactiveQueue contains SortedQueue with more than %d elements (len(queue)=%d)
+    username : %s
+    hostname : %s
+    config   : %s
+This is warning number : %d
+"""
+recovery_subject = "RECOVERY: SortedQueue has shortened on %s"
+recovery_body    = """RECOVERY:
+interactiveQueue contains SortedQueue with fewer than %d elements (len(queue)=%d)
+    username : %s
+    hostname : %s
+    config   : %s
+"""
+#---------------------------------------------------------------------------------------------------
+
 def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxComplete=100, maxFrac=0.5, warnThr=1e3, recipients=[], warnDelay=3600, maxWarn=24, print2stdout=False):
     """
     a simple function that manages a queue
@@ -113,22 +177,11 @@ def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxCo
                     logger.warn( trcbk )
 
                 if recipients:
-                    subject = "WARNING: could not parse lvalert payload on %s"%(hostname)
-                    body    = """\
-time (localtime): 
-  %s
-
-lvalert message: 
-  %s
-
-%s
-
-    username : %s
-    hostname : %s
-    config   : %s
-"""%(time.ctime(t0), e, trcbk, username, hostname, config_filename)
-
-                    utils.sendEmail( recipients, body, subject )
+                    utils.sendEmail( 
+                        recipients, 
+                        lvalert_body%(time.ctime(t0), e, trcbk, username, hostname, config_filename), 
+                        lvalert_subject%(hostname),
+                    )
 
             ### parse the message and insert the appropriate item into the queuie
             ### only do this if "e" was successfully parsed into a dictionary
@@ -143,22 +196,11 @@ lvalert message:
                         logger.warn( trcbk )
 
                     if recipients:
-                        subject = "WARNING: parseAlert caught an exception on %s"%(hostname)
-                        body    = """\
-time (localtime): 
-  %s
-
-lvalert message: 
-  %s
-
-%s
-
-    username : %s
-    hostname : %s
-    config   : %s
-"""%(time.ctime(t0), json.dumps(e), trcbk, username, hostname, config_filename)
-
-                        utils.sendEmail( recipients, body, subject )
+                        utils.sendEmail( 
+                            recipients, 
+                            parseAlert_body%(time.ctime(t0), json.dumps(e), trcbk, username, hostname, config_filename), 
+                            parseAlert_subject%(hostname),
+                        )
 
         ### remove any completed tasks from the front of the queue
         while len(queue) and queue[0].complete: ### skip all things that are complete already
@@ -188,24 +230,11 @@ lvalert message:
                         logger.warn( trcbk )
 
                     if recipients:
-                        subject = "WARNING: %s.execute caught an exception on %s"%(item.name, hostname)
-                        body    = """\
-time (localtime): 
-  %s
-
-QueueItem = %s: 
-  %s
-
-%s
-
-    username : %s
-    hostname : %s
-    config   : %s
-
-QueueItem marked complete to avoid repeated errors.
-"""%(time.ctime(t0), item.name, item.description, trcbk, username, hostname, config_filename)
-
-                        utils.sendEmail( recipients, body, subject )
+                        utils.sendEmail( 
+                            recipients, 
+                            execute_body%(time.ctime(t0), item.name, item.description, trcbk, username, hostname, config_filename),
+                            execute_subject%(item.name, hostname),
+                        )
 
                 if item.complete: ### item is now complete, so we remove it from the queue
                     ### remove this item from queueByGraceID
@@ -234,19 +263,12 @@ QueueItem marked complete to avoid repeated errors.
         ### check len(queue) and send warnings
         if len(queue) > warnThr: ### queue is too long
             if time.time() > warnTime: ### it's not too soon to send another warning
+                warnCount += 1
                 if recipients: ### send with emails
-                    if warnCount < maxWarn: ### we should still send out a warning
-                        warnCount += 1 ### increment counter    
-
+                    if warnCount <= maxWarn: ### we should still send out a warning
                         ### set up the message
-                        subject = "WARNING: queue is too long on %s"%(hostname)
-                        body    = """WARNING:
-interactiveQueue contains SortedQueue with more than %d elements (len(queue)=%d)
-    username : %s
-    hostname : %s
-    config   : %s
-This is warning number : %d
-"""%(warnThr, len(queue), username, hostname, config_filename, warnCount)
+                        subject = warning_subject%(hostname)
+                        body    = warning_body%(warnThr, len(queue), username, hostname, config_filename, warnCount)
 
                         if warnCount == maxWarn: ### this is our last warning before silencing, augment message
                             subject = "FINAL "+subject
@@ -257,35 +279,26 @@ This is warning number : %d
                     else: ### we've already sent the maximum allowed warnings
                         pass
 
-                else:
-                    warnCount = 1 ### set this to a positive number so we'll get a recover notice in the log
-
                 if verbose:
                     logger.warn( "len(queue)=%d >= %d=warnThr; emails sent to : %s"%(len(queue), warnThr, ", ".join(recipients)) )
 
                 warnTime = time.time()+warnDelay ### update time when we'll send the next warning
 
         elif warnCount > 0: ### we've sent warnings
-            warnCount = 0  ### reset this counter because we've recovered
-            warnTime = -infty ### reset time of last warning to ensure we send one if things go bad again
-
             if recipients: ### send RECOVERY notice
-                subject = "RECOVERY: SortedQueue has shortened on %s"%(hostname)
-                body    = """RECOVERY:
-interactiveQueue contains SortedQueue with fewer than %d elements (len(queue)=%d)
-    username : %s
-    hostname : %s
-    config   : %s
-"""%(warnThr, len(queue), username, hostname, config_filename)
+                body = recovery_body%(warnThr, len(queue), username, hostname, config_filename)
 
-                if warnCount == maxWarn: ### we've silence warnings
+                if warnCount >= maxWarn: ### we've silence warnings
                     body = body + "Recovery has un-silenced warnings."
 
-                utils.sendEmail( recipients, body, subject ) 
+                utils.sendEmail( recipients, body, recovery_subject%(hostname) ) 
 
             if verbose: ### print RECOVERY notice
                 logger.warn( "len(queue)=%d <= %d=warnThr; emails sent to : %s"%(len(queue), warnThr, ", ".join(recipients)) )
  
+            warnCount = 0  ### reset this counter because we've recovered
+            warnTime = -infty ### reset time of last warning to ensure we send one if things go bad again
+
         ### sleep if needed
         wait = (start+sleep)-time.time() 
         if wait > 0:
