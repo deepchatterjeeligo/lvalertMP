@@ -8,6 +8,7 @@ author = "reed.essick@ligo.org"
 #-------------------------------------------------
 
 import sys
+import time
 
 import lvalertMPutils as utils
 
@@ -202,6 +203,8 @@ class ClearGraceIDTask(CommandTask):
 class CheckpointQueueItem(CommandQueueItem):
     '''
     QueueItem that saves a representation of the queue to disk
+
+    we can get this to repeatedly checkpoint the queue by supplying a 'sleep' kwarg
     '''
     name = 'checkpointQueue'
     description = 'writes a representation of the queue to disk'
@@ -209,9 +212,11 @@ class CheckpointQueueItem(CommandQueueItem):
 class CheckpointQueueTask(CommandTask):
     '''
     Task that saves a representation of the queue to disk
+
+    we can get this to repeatedly checkpoint the queue by supplying a 'sleep' kwarg
     '''
     name = 'checkpointQueue'
-    description = 'writes a representation of the queue to disk'
+    description = 'writes a representation of the queue to disk. Can be made to repeat by supplying a "sleep" kwarg'
 
     required_kwargs  = ['filename']
     forbidden_kwargs = []
@@ -229,45 +234,9 @@ class CheckpointQueueTask(CommandTask):
         pickle.dump( self.queueByGraceID, file_obj )
         file_obj.close()
 
-#------------------------
-
-class RepeatedCheckpointQueueItem(CommandQueueItem):
-    '''
-    QueueItem that repeatedly saves a representation of the queue to disk
-
-    note: this is almost identical to CheckpointOueue but we implement separate classes for clarity
-    '''
-    name = 'repeatedCheckpoint'
-    description = 'repeatedly save a representation of the queue to disk'
-
-class RepeatedCheckpointTask(CommandTask):
-    '''
-    Task that saves a representation of the queue to disk and updates it's own expiration
-
-    note: this is almost identical to CheckpointOueue but we implement separate classes for clarity
-    '''
-    name = 'repeatedCheckpoint'
-    description = 'writes a representation of the queue to disk and updates expiration'
-
-    required_kwargs  = ['filename', 'sleep']
-    forbidden_kwargs = []
-
-    def repeatedCheckpoint(self, verbose=False, **kwargs):
-        '''
-        writes a representation of queue into 'filename' (required kwarg)
-        also updates expiration
-
-        WARNING: we may want to gzip or somehow compress the pickle files produced. We'd need to mirror this within loadQueue.
-        '''
-        import pickle
-        filename = self.kwargs['filename']
-        file_obj = open(filename, 'w')
-        pickle.dump( self.queue, file_obj )
-        pickle.dump( self.queueByGraceID, file_obj )
-        file_obj.close()
-
-        self.setExpiration(self.expiration) ### update expiration -> self.expiration+self.sleep
-                                            ### this is the only substantive difference between RepeatedChecpoint and CheckpointQueue
+        self.setExpiration(time.time()) ### update expiration -> self.expiration+self.timeout
+        ### if sleep was not proficed, this takes expiration=-np.infty -> -np.infty and the item will still end up being marked complete
+        ### we use time.time() instead of self.expiration to ensure that this is not marked complete accidentally if the queue has fallen behind
 
 #------------------------
 
@@ -336,12 +305,14 @@ class PrintMessageTask(CommandTask):
     def printMessage(self, verbose=False, **kwargs):
         '''
         prints 'message' (required kwarg) via a logger
+
+        note, verbose will make this print to STDOUT via logging.StreamHandler
         '''
         ### print set up logger
         logger  = logging.getLogger('%s.%s'%(self.logTag, self.name)) ### want this to also propagate to interactiveQueue's logger
-        handler = logging.StreamHandler() ### we don't format this so that it prints exactly as supplied
-                                          ### however, interactiveQueue's handler *will* be formatted nicely 
-        logger.addHandler( handler )
+        if verbose:
+            logger.addHandler( logging.StreamHandler() ) ### we don't format this so that it prints exactly as supplied
+                                                         ### however, interactiveQueue's handler *will* be formatted nicely 
 
         ### print to logger
         logger.info( self.kwargs['message'] )
@@ -541,16 +512,6 @@ class CheckpointQueue(Command):
 
 #------------------------
 
-class RepeatedCheckpoint(Command):
-    '''
-    save a representation of the queue to disk repeatedly
-
-    NOTE: this QueueItem will *not* be included in the pkl file because it will be popped when executed
-    '''
-    name = "repeatedCheckpoint"
-
-#------------------------
-
 class LoadQueue(Command):
     '''
     load a representation fo the queue from disk
@@ -601,7 +562,7 @@ for x in vars().values():
 
 ### confirm that __cid__, __qid__, and __tid__ all have matching keys
 assert (sorted(__cid__.keys()) == sorted(__qid__.keys())) and (sorted(__cid__.keys()) == sorted(__tid__.keys())), \
-    "inconsistent name attributes within sets of defined Commands, CommandQueueItems, and CommandTasks"
+    "inconsistent name attributes within sets of defined Commands, CommandQueueItems, and CommandTasks\n__cid__:%s\n__qid__:%s\n__tid__:%s"%(sorted(__cid__.keys()), sorted(__qid__.keys()), sorted(__tid__.keys()))
 
 #------------------------
 # utilities for looking up info within private variables
