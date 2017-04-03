@@ -53,6 +53,7 @@ def parseAlert( queue, queueByGraceID, alert, t0, config, logTag='iQ' ):
 
     ### generate the Item which houses the tasks
     item = utils.QueueItem( t0, [taskA, taskB] )
+    item.graceid = graceid 
 
     ### add the item to the queue
     queue.insert( item )
@@ -60,7 +61,7 @@ def parseAlert( queue, queueByGraceID, alert, t0, config, logTag='iQ' ):
     ### add the item to the queue for this specific graceID
     if hasattr(item, 'graceid'): ### item must have this attribute for us to add it to queueByGraceID
         if not queueByGraceID.has_key(graceid):
-            queueByGraceID[graceid] = SortedQueue()
+            queueByGraceID[graceid] = utils.SortedQueue()
         queueByGraceID[graceid].insert( item )
 
     logger.debug( 'added QueueItem=%s'%item.name ) 
