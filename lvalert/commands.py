@@ -26,12 +26,16 @@ class CommandQueueItem(utils.QueueItem):
     '''
     A parent QueueItem for Commands. This class handles automatic lookup and Task instantiation.
     Most if not all children will simply overwrite the name and description attributes.
+
+    NOTE: will only automatically create Tasks if __tid__.has_key(self.name). Otherwise, tasks is instantiated as an empty list and the user will have to add them in manually.
     '''
     name = 'command'
     description = 'parent of all command queue items. Implements automatic generation of associated Tasks, etc'
 
     def __init__(self, t0, queue, queueByGraceID, logTag='iQ', **kwargs):
-        tasks = [ __tid__[self.name](queue, queueByGraceID, logTag="%s.%s"%(logTag, self.name), **kwargs) ] ### look up tasks automatically via name attribute
+        tasks = []
+        if __tid__.has_key(self.name): ### look up tasks automatically via name attribute
+            tasks.append(__tid__[self.name](queue, queueByGraceID, logTag="%s.%s"%(logTag, self.name), **kwargs) )
 
         if kwargs.has_key('graceid'): ### if attached to a graceid, associate it as such
             self.graceid = kwargs['graceid']
@@ -442,18 +446,19 @@ class Command(object):
         if something is missing, we raise a KeyError
         also checks to make sure that no forbidden_kwarg is present.
         if one is, we raise a KeyError
+
+        NOTE: this only works if __tid__.has_key(self.name), otherwise it assumes everything is fine
         '''
-        if not __tid__.has_key(self.name):
-            raise KeyError, 'Command=%s is not known!'%self.name
+        
+        if __tid__.has_key(self.name): ### only check things if we know what to check
+            kwargs = self.data['object']
+            for kwarg in __tid__[self.name].required_kwargs: ### check to make sure we have everyting we need
+                if not kwargs.has_key(kwarg):
+                    raise KeyError('Command=%s is missing required kwarg=%s'%(self.name, kwarg))
 
-        kwargs = self.data['object']
-        for kwarg in __tid__[self.name].required_kwargs: ### check to make sure we have everyting we need
-            if not kwargs.has_key(kwarg):
-                raise KeyError('Command=%s is missing required kwarg=%s'%(self.name, kwarg))
-
-        for kwarg in __tid__[self.name].forbidden_kwargs: ### check to make sure we don't have anything forbidden
-            if kwargs.has_key(kwarg):
-                raise KeyError('Command=%s contains forbidden kwarg=%s'%(self.name, kwarg))
+            for kwarg in __tid__[self.name].forbidden_kwargs: ### check to make sure we don't have anything forbidden
+                if kwargs.has_key(kwarg):
+                    raise KeyError('Command=%s contains forbidden kwarg=%s'%(self.name, kwarg))
 
     def parse(self, alert):
         '''
@@ -483,9 +488,14 @@ class Command(object):
         '''
         defines a list of QueueItems that need to be added to the queue
         uses automatic lookup via __qid__ to identify which QueueItem must be generated based on self.name
+
+        NOTE: this will only generate items if __qid__.has_key(self.name). Otherwise, will raise a KeyError
         '''
         self.checkObject() ### ensure we have all the kwargs we need
-        return [ __qid__[self.name](t0, queue, queueByGraceID, logTag=logTag, **self.data['object']) ] ### look up the QueueItem via qid and self.name, then call the __init__ as needed
+        if __qid__.has_key(self.name):
+            return [ __qid__[self.name](t0, queue, queueByGraceID, logTag=logTag, **self.data['object']) ] ### look up the QueueItem via qid and self.name, then call the __init__ as needed
+        else:
+            raise KeyError, 'command=%s is not known to __qid__ and can not be automatically built'%self.name
 
 #------------------------
 
@@ -589,10 +599,6 @@ for x in vars().values():
         elif issubclass(x, CommandTask):
             __tid__[x.name] = x
 
-__cid__.pop('command') ### get rid of parent class because we shouldn't be calling it. It's really just a template...
-__qid__.pop('command') ### get rid of parent class
-__tid__.pop('command') ### get rid of parent class
-
 ### confirm that __cid__, __qid__, and __tid__ all have matching keys
 assert (sorted(__cid__.keys()) == sorted(__qid__.keys())) and (sorted(__cid__.keys()) == sorted(__tid__.keys())), \
     "inconsistent name attributes within sets of defined Commands, CommandQueueItems, and CommandTasks"
@@ -653,7 +659,6 @@ def parseCommand( queue, queueByGraceID, alert, t0, logTag='iQ' ):
     logger = logging.getLogger('%s.parseCommand'%logTag) ### want this to propagate to interactiveQueue's logger
 
     cmd = initCommand( alert['alert_type'], **alert['object'] ) ### instantiate the Command object
-#    cmd.parse( alert ) ### parse the alert message
 
     for item in cmd.genQueueItems(queue, queueByGraceID, t0, logTag=logTag): ### add items to the queue
         queue.insert( item )
