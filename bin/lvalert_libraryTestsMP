@@ -15,6 +15,8 @@ __author__ = "Reed Essick (reed.essick@ligo.org)"
 
 #-------------------------------------------------
 
+import os
+
 from lvalertMP.lvalert import interactiveQueue
 from lvalertMP.lvalert import commands
 from lvalertMP.lvalert import lvalertMPutils as utils
@@ -25,6 +27,7 @@ import time
 import numpy as np
 
 import json
+import logging
 
 from optparse import OptionParser
 
@@ -34,6 +37,9 @@ parser = OptionParser(usage=__usage__, description=__description__)
 
 parser.add_option('-v', '--verbose', default=False, action='store_true')
 parser.add_option('-V', '--Verbose', default=False, action='store_true')
+
+parser.add_option('', '--logDir', default='.', type='string')
+parser.add_option('', '--logLevel', default=5, type='float')
 
 ### options about what to test
 parser.add_option('', '--everything', default=False, action='store_true',
@@ -659,20 +665,77 @@ if opts.commands or opts.everything:
     assert cqi.complete, 'ClearGraceID item was not marked complete'
     assert len(q)==1 and q[0]==cqi, 'queue did not retain a reference to ClearGraceID item'
 
-    ### checkpointQueue (requires filename)
-    raise NotImplementedError
-
-    ### repeatedCheckpoint (requires filename, sleep
-    raise NotImplementedError
-
-    ### loadQueue (requires filename)
-    raise NotImplementedError
-
     ### printMessage (requires message)
-    raise NotImplementedError
+    logname = os.path.join(opts.logDir, os.path.basename(__file__)+'.log')
+    logger = logging.getLogger(logTag)
+    logger.setLevel(opts.logLevel)
+    logger.addHandler( logging.FileHandler(logname) )
+    mtime = os.path.getmtime(logname)
+
+    message = 'hello world'
+    commands.PrintMessage(message=message).genQueueItems(q, qbgid, t0, logTag=logTag)[0].execute(verbose=False) ### should just work
+    assert mtime<os.path.getmtime(logname), 'log was not modified when it should have been'
+    assert message in open(logname,'r').readlines()[-1], 'message was not in the last line of the log'
+    mtime = os.path.getmtime(logname)
 
     ### printQueue (requires filename)
-    raise NotImplementedError
+    # NOTE, we don't test the cases where filename='STDOUT' or 'STDERR' here...
+    # we also don't check for the content of what's written into the log...
+    commands.PrintQueue(filename=logname).genQueueItems(q, qbgid, t0, logTag=logTag)[0].execute() ### should just work
+    assert mtime<os.path.getmtime(logname), 'log was not modified when it should have been'    
+
+    ### checkpointQueue (requires filename) and loadQueue (requires filename)
+    pklname = os.path.join(opts.logDir, os.path.basename(__file__)+'.pkl')
+    commands.CheckpointQueue(filename=pklname).genQueueItems(q, qbgid, t0, logTag=logTag)[0].execute() ### should just work
+
+    # load things from disk using loadQueue
+    Q = utils.SortedQueue()
+    QBGID = dict()
+    commands.LoadQueue(filename=pklname).genQueueItems(Q, QBGID, t0, logTag=logTag)[0].execute() ### should modify Q, QBGID
+    assert len(Q)==len(q), 'loaded queue does not match what we wrote to disk'
+    for item1, item2 in zip(Q,q):
+        assert item1.name==item2.name and item1.expiration==item2.expiration, 'loaded queue does not match what we wrote to disk'
+        # NOTE: this could be more thorough...
+
+    assert QBGID.keys()==qbgid.keys(), 'loaded queueByGraceID does not match what we wrote to disk'
+    for key in QBGID.keys():
+        assert len(QBGID[key])==len(qbgid[key]), 'loaded queueByGraceID does not match what we wrote to disk'
+        for item1, item2 in zip(QBGID[key], qbgid[key]):
+            assert item1.name==item2.name and item1.expiration==item2.expiration, 'loaded queueByGraceID does not match what we wrote to disk'
+            # NOTE: this could be more thorough...
+
+    # now check that we don't overwrite things that are already in queue when we load in stuff
+    # NOTE: we don't check that existing items were not modified...
+
+    extraid = 'extraid'
+    Q = utils.SortedQueue()
+    QBGID = dict([(fakeid,utils.SortedQueue()), (extraid,utils.SortedQueue())])
+
+    item = utils.QueueItem(t0, [])
+    item.graceid = fakeid
+    Q.insert( item )
+    QBGID[fakeid].insert( item )
+    commands.LoadQueue(filename=pklname).genQueueItems(Q, QBGID, t0, logTag=logTag)[0].execute() ### should modify Q, QBGID
+
+    assert len(Q)==len(q)+1, 'Q did not have the expected length'
+    assert len(QBGID.keys())==2 and QBGID.has_key(fakeid) and QBGID.has_key(extraid), 'QBGID did not have the expected number of keys'
+    assert len(QBGID[fakeid])==len(qbgid[fakeid])+1, 'QBGID[fakeid] did not have the correct length'
+    assert len(QBGID[extraid])==0, 'QBGID[extraid] did not have the correct length'
+
+    # check that expiration is updated correctly if we supply the sleep kwarg
+    timeout = 2
+    ckpt = commands.CheckpointQueue(filename=pklname, sleep=timeout).genQueueItems(q, qbgid, t0, logTag=logTag)[0]
+    assert ckpt.expiration==t0+timeout, 'expiration was not set correctly'
+    if opts.Verbose:
+        print( '    sleeping for %d seconds so that call to CheckpointQueueItem.execute does something'%timeout )
+    time.sleep(timeout) ### sleep so the item expires and call to execute does something
+    t0 = time.time()
+    ckpt.execute()
+    assert ckpt.expiration > t0+timeout, 'expiration was not updated correctly'
+    assert not ckpt.complete, 'complete was not set correctly'
+
+    ### sendEmail (requires recipients, subject, body)
+    # tested in lvalert_sanityChecksMP
 
     if opts.Verbose:
         print( '    commands functionality passed all tests successfully' )
@@ -687,23 +750,43 @@ if opts.parseAlert or opts.everything:
         print( 'testing parseAlert' )
 
     #--- PrintAlertTask
+    timeout = 10
+    fakeid = 'fakeid'
+    alert = {'uid':fakeid}
+    logTag = __file__
 
     ### __init__ (graceid, alert)
-    raise NotImplementedError
+    task = parseAlert.PrintAlertTask( timeout, fakeid, alert, logTag=logTag )
+    assert task.graceid == fakeid, 'task.graceid not set correctly'
+    assert task.alert == alert, 'task.alert not set correctly'
+    assert task.timeout==timeout, 'timeout not delegated to lvalertMPutils.Task correctly'
 
     ### printAlert
-    raise NotImplementedError
+    logname = os.path.join(opts.logDir, os.path.basename(__file__)+'.log')
+    logger = logging.getLogger(logTag)
+    logger.setLevel(opts.logLevel)
+    logger.addHandler( logging.FileHandler(logname) )
+    mtime = os.path.getmtime(logname)
+
+    task.execute() ### should just work
+    assert mtime<os.path.getmtime(logname), 'log was not updated when it should have been'
+    last_line = open(logname,'r').readlines()[-1]
+    assert fakeid in last_line and '%s'%alert in last_line, 'could not find alert printed into log'
 
     if opts.Verbose:
         print( '    parseAlert.PrintAlertTask passed all tests successfully' )
 
     #--- parseAlert
+    q = utils.SortedQueue()
+    qbgid = dict()
 
     ### instantiation of QueueItem, tasks
-    raise NotImplementedError
-
     ### queue and queueByGraceID are modified as expected
-    raise NotImplementedError
+    t0 = time.time()
+    parseAlert.parseAlert(q, qbgid, alert, t0, None, logTag=logTag )
+    assert len(q)==1, 'queue has the wrong length'
+    assert len(q[0].tasks)==2, 'item.tasks has the wrong length'
+    assert len(qbgid.keys())==1 and qbgid.has_key(fakeid), 'queueByGraceID not instantiated correctly'
 
     if opts.Verbose:
         print( '    parseAlert.parseAlert passed all tests successfully' )
