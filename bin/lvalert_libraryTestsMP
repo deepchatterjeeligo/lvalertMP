@@ -25,11 +25,37 @@ from lvalertMP.lvalert import parseAlert
 import time
 
 import numpy as np
+from random import choice
 
 import json
 import logging
 
+import traceback
+
+import multiprocessing as mp
+from ConfigParser import SafeConfigParser
+
 from optparse import OptionParser
+
+#-------------------------------------------------
+
+def gen_randKey(length=16):
+    '''
+    generate a random string
+    '''
+    return ''.join(choice('abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789') for _ in xrange(length))
+
+def pkl2queue( pklname ):
+    '''
+    this may seem needlessly complicated, but that's only because it is.
+    however, this will also help to ensure that LoadQueue is sane and playes will with CheckpointQueue
+    '''
+    queue = utils.SortedQueue()
+    queueByGraceID = dict()
+
+    commands.LoadQueue(filename=pklname).genQueueItems(queue, queueByGraceID, time.time())[0].execute() ### this will modify queue, queueByGraceID in place
+
+    return queue, queueByGraceID
 
 #-------------------------------------------------
 
@@ -40,6 +66,31 @@ parser.add_option('-V', '--Verbose', default=False, action='store_true')
 
 parser.add_option('', '--logDir', default='.', type='string')
 parser.add_option('', '--logLevel', default=5, type='float')
+
+parser.add_option('', '--wait', default=1.0, type='float',
+    help='the amount of time we wait after sending messages to child processes. DEFAULT=1.0')
+
+### options about interactiveQueue kwargs
+parser.add_option('', '--sleep', default=0.01, type='int',
+    help='the amount of time slept between epochs of interactiveQueue\'s loop')
+
+parser.add_option('', '--maxComplete', default=5, type='int',
+    help='the largest allowable number of complete QueueItems within queue before triggering cleanup')
+
+parser.add_option('', '--maxFrac', default=0.50, type='int',
+    help='the largest fraction of QueueItems in queue that can be complete before triggering cleanup')
+
+parser.add_option('', '--warnThr', default=10, type='int',
+    help='the number of QueueItems in queue beyond which we begin sending warnings about the queue\'s size')
+
+parser.add_option('', '--warnDelay', default=30, type='float',
+    help='the number of seconds that must ellapse between warnings about queue\'s size')
+
+parser.add_option('', '--maxWarn', default=3, type='int',
+    help='the maximum number of warnings about queue\'s size that will be issued')
+
+parser.add_option('', '--print2stdout', default=False, action='store_true',
+    help='passed to interactiveQueue')
 
 ### options about what to test
 parser.add_option('', '--everything', default=False, action='store_true',
@@ -54,9 +105,21 @@ parser.add_option('', '--commands', default=False, action='store_true',
 parser.add_option('', '--parseAlert', default=False, action='store_true',
     help='run tests of parseAlert')
 
+parser.add_option('', '--interactiveQueue', default=False, action='store_true',
+    help='run tests of interactiveQueue')
+
 opts, args = parser.parse_args()
 
 opts.verbose = opts.Verbose or opts.verbose
+
+if not os.path.exists(opts.logDir):
+    os.makedirs(opts.logDir)
+
+assert opts.wait > 10*opts.sleep, '--wait must be at least 10 times as big as sleep to ensure child processes have ample time to processes QueueItems'
+
+if opts.interactiveQueue or opts.everything: ### ensure maxComplete and maxFrac are compatible with separable tests
+    assert opts.maxFrac < 1, '--maxFrac must be less than 1'
+    assert opts.maxComplete > 1./(1-opts.maxFrac)+1, '--maxComplete must be larger in order to separately test maxFrac and maxComplete'
 
 #-------------------------------------------------
 
@@ -793,3 +856,418 @@ if opts.parseAlert or opts.everything:
 
     if opts.verbose:
         print ('parseAlert passed all tests successfully' )
+
+#------------------------
+
+if opts.interactiveQueue or opts.everything:
+    if opts.verbose:
+        print( 'testing interactiveQueue' )
+
+    ### set up config files
+    if opts.Verbose:
+        print( '    setting up config files' )
+    config = SafeConfigParser() ### a config file containing the minimum amount of information required
+    verbose_filename = os.path.join(opts.logDir, 'verbose_config.ini')
+    silent_filename = os.path.join(opts.logDir, 'silent_config.ini')
+
+    if opts.Verbose:
+        print( '        '+silent_filename )
+        print( '        '+verbose_filename )
+
+    ### add in options
+    config.add_section('general')
+    config.set('general', 'process_type', 'test')
+    config.set('general', 'log_directory', opts.logDir)
+    config.set('general', 'log_level', '%d'%opts.logLevel)
+
+    ### write configs to disk
+    for filename in [verbose_filename, silent_filename]:
+        file_obj = open(filename, 'w')
+        config.write(file_obj)
+        file_obj.close()
+
+    ### set up log information
+    silent_logfilename = utils.genLogname( opts.logDir, 'test_'+os.path.basename(silent_filename)[:-4])
+    verbose_logfilename = utils.genLogname( opts.logDir, 'test_'+os.path.basename(verbose_filename)[:-4])
+    for filename in [silent_logfilename, verbose_logfilename]:
+        open(filename, 'w').close() ### touch this file so it exists
+    silent_mtime = os.path.getmtime(silent_logfilename)
+    verbose_mtime = os.path.getmtime(verbose_logfilename)
+
+    ### set-up multiprocessing connection
+    silent_conn1, silent_conn2 = mp.Pipe()
+    verbose_conn1, verbose_conn2 = mp.Pipe()
+
+    #--- start processes
+    # verbose=False
+    silent_proc = mp.Process(
+        target=interactiveQueue.interactiveQueue, 
+        args=(silent_conn2, silent_filename, False, opts.sleep, opts.maxComplete, opts.maxFrac, opts.warnThr, [], opts.warnDelay, opts.maxWarn, opts.print2stdout),
+    )
+    silent_proc.start()
+    silent_conn2.close()
+
+    # verbose=True
+    verbose_proc = mp.Process(
+        target=interactiveQueue.interactiveQueue, 
+        args=(verbose_conn2, verbose_filename, True, opts.sleep, opts.maxComplete, opts.maxFrac, opts.warnThr, [], opts.warnDelay, opts.maxWarn, opts.print2stdout),
+    )
+    verbose_proc.start()
+    verbose_conn2.close()
+
+    time.sleep(opts.wait)
+
+    ### wrap the rest of this in a big try/except loop to handle graceful termination of child processes
+    try:
+        #--- reading in config file and setting up logger
+
+        ### ensure we can control when we write to log file
+        # verbose=False
+        assert silent_mtime==os.path.getmtime(silent_logfilename), 'logfile : %s was modified when it should not have been\nmtime : %f'%(silent_logfilename, silent_mtime)
+        if opts.Verbose:
+            print( '    successfully forked interactiveQueue without writing to logfile' )
+
+        # verbose=True
+        assert verbose_mtime<os.path.getmtime(verbose_logfilename), 'logfile : %s was not modified when it should have been\nmtime : %f'%(verbose_logfilename, verbose_mtime)
+        if opts.Verbose:
+            print( '    successfully forked interactiveQueue and watched it write to logfile' )
+        verbose_mtime = os.path.getmtime(verbose_logfilename)
+
+        #--- robust against improperly formatted json string
+        message = 'bad message format' ### send a bad message
+
+        # verbose=False
+        silent_conn1.send( (message, time.time()) )
+        time.sleep(opts.wait) ### give process a chance to fall over
+        assert silent_proc.is_alive(), 'verbose=False process died when a malformed json package was sent'
+        assert silent_mtime==os.path.getmtime(silent_logfilename), 'logfile : %s was modified when it should not be\nmtime : %f'%(silent_logfilename, silent_mtime)
+        if opts.Verbose:
+            print( '    verbose=False process did not die when sent a malformed json package' )
+
+        # verbose=True
+        verbose_conn1.send( (message, time.time()) )
+        time.sleep(opts.wait)
+        assert verbose_proc.is_alive(), 'verbose=True process died when malformed json package was sent'
+        assert verbose_mtime<os.path.getmtime(verbose_logfilename), 'logfile : %s was not modified when it should be\nmtime : %f'%(verbose_logfilename, verbose_mtime)
+        if opts.Verbose:
+            print( '    verbose=True process did not die when sent a malformed json package' )
+        verbose_mtime = os.path.getmtime(verbose_logfilename)
+
+        #--- logger inheritance -> make sure that PrintAlert modifies the logfile
+        randKey = gen_randKey()
+        message = json.dumps({'uid':'test', 'content':randKey})
+
+        # verbose=False
+        silent_conn1.send( (message, time.time()) )
+        time.sleep(opts.wait)
+        assert silent_mtime==os.path.getmtime(silent_logfilename), 'logfile : %s was modified when it should not be\nmtime : %f'%(silent_logfilename, silent_mtime)
+        if opts.Verbose:
+            print( '    verbose=False process did not print anything when parseAlert inserted PrintAlertTasks' )
+
+        # verbose=True
+        verbose_conn1.send( (message, time.time()) )
+        time.sleep(opts.wait)
+        assert verbose_mtime<os.path.getmtime(verbose_logfilename), 'logfile : %s was not modified when it should be\nmtime : %f'%(verbose_logfilename, verbose_mtime)
+
+        file_obj = open(verbose_logfilename, 'r')
+        for line in file_obj:
+            if randKey in line:
+                break
+        else:
+            raise AssertionError, 'could not find randKey in verbose=True logfile (randKey was included in the alert packet)'
+        file_obj.close()
+        if opts.Verbose:
+            print( '    verbose=False process printed alert when parseAlert inserted PrintAlertTasks' )
+        verbose_mtime = os.path.getmtime(verbose_logfilename)
+
+        #--- sending emails
+
+        ### when parseAlert raises an exception
+        message = json.dumps({'format':'bad'}) ### dict does not have a 'uid' key, which will cause lvalertMP.lvalert.parseAlert.parseAlert to raise a KeyError
+
+        # verbose=True
+        silent_conn1.send( (message, time.time()) )
+        time.sleep(opts.wait) ### give the process time to react
+        assert silent_proc.is_alive(), 'verbose=True process died when we attempted to make parseAlert raise an exception'
+        assert silent_mtime==os.path.getmtime(silent_logfilename), 'logfile : %s was modified when it should not be\nmtime : %f'%(silent_logfilename, silent_mtime)
+        if opts.Verbose:
+            print( '    verbose=False process successfully survived parseAlert raising an exception' )
+
+        # verbose=True
+        verbose_conn1.send( (message, time.time()) )
+        time.sleep(opts.wait)
+        assert verbose_proc.is_alive(), 'verbose=True process died when we attempted to make parseAlert raise an exception'
+        assert verbose_mtime<os.path.getmtime(verbose_logfilename), 'logfile : %s was not modified when it should be\nmtime : %f'%(verbose_logfilename, verbose_mtime)
+
+        file_obj = open(verbose_logfilename, 'r')
+        for line in file_obj:
+            if 'parseAlert raised an exception!' in line:
+                break
+        else:
+            raise AssertionError, 'could not find warning about parseAlert\'s exception in verbose=True logfile'
+        file_obj.close()
+
+        if opts.Verbose:
+            print( '    verbose=True process successfully survived parseAlert raising an exception and printed a Warning' )
+        verbose_mtime = os.path.getmtime(verbose_logfilename)
+
+        ### when execute raises an exception
+        message = commands.RaiseException().write() ### send a command to raise an exception
+
+        # verbose=False
+        silent_conn1.send( (message, time.time()) )
+        time.sleep(opts.wait)
+
+        assert silent_proc.is_alive(), 'verbose=False process died when item.execute raised an exception'
+        assert silent_mtime==os.path.getmtime(silent_logfilename), 'logfile : %s was modified when it should not be\nmtime : %f'%(silent_logfilename, silent_mtime)
+        if opts.Verbose:
+            print( '    verbose=False process successfully survived item.execute raising an exception' )
+
+        # verbose=True
+        verbose_conn1.send( (message, time.time()) )
+        time.sleep(opts.wait)
+        assert verbose_proc.is_alive(), 'verbose=True process died when item.execute raised an exception'
+        assert verbose_mtime<os.path.getmtime(verbose_logfilename), 'logfile : %s was not modified when it should be\nmtime : %f'%(verbose_logfilename, verbose_mtime)
+
+        file_obj = open(verbose_logfilename, 'r')
+        for line in file_obj:
+            if 'execute raised an exception!' in line:
+                break
+        else:
+            raise AssertionError, 'could not find warning about item.execute\'s exception in verbose=True logfile'
+        file_obj.close()
+
+        if opts.Verbose:
+            print( '    verbose=True process successfully survived item.execute raising an exception and printed a Warning' )
+        verbose_mtime = os.path.getmtime(verbose_logfilename)
+
+        ### when the queue gets too big
+        if opts.Verbose:
+            print( '    generating %d QueueItems to check warnings based on queue\'s size'%(opts.warnThr+1) )
+
+        # send in a bunch of messages, enough to trigger the warning threshold
+        for ind in xrange(opts.warnThr+1): ### one more than the wanring threshold
+            message = commands.PrintMessage(message='message %d'%ind, sleep=np.infty).write() ### sleep for a long time so these message are not printed immediately
+            for conn in [silent_conn1, verbose_conn1]:
+                conn.send( (message, time.time()) )
+            time.sleep(opts.wait)
+
+        # verbose=False
+        assert silent_proc.is_alive(), 'verbose=False process died when we added a bunch of QueueItems'
+        assert silent_mtime==os.path.getmtime(silent_logfilename), 'logfile : %s was modified when it should not be\nmtime : %f'%(silent_logfilename, silent_mtime)
+        if opts.Verbose:
+            print( '    verbose=False process survived receiving a bunch of QueueItems' )
+
+        # verbose=True
+        assert verbose_proc.is_alive(), 'verbose=True process died when we added a bunch of QueueItems'
+        assert verbose_mtime<os.path.getmtime(verbose_logfilename), 'logfile : %s was not modified when it should be\nmtime : %f'%(verbose_logfilename, verbose_mtime)
+
+        file_obj = open(verbose_logfilename, 'r')
+        for line in file_obj:
+            if ('len(queue)' in line) and ('>=' in line) and ('warnThr; emails sent to' in line):
+                break
+        else:
+            raise AssertionError, 'could not find warning about warning based on too many QueueItems in verbose=True logfile'
+        file_obj.close()
+
+        if opts.Verbose:
+            print( '    verbose=True process successfully survived receiving a bunch of QueueItems and printed a Warning' )
+        verbose_mtime = os.path.getmtime(verbose_logfilename)
+
+        ### check when queue shrinks again
+
+        # clear the queue's before the final warning is sent
+        message = commands.ClearQueue().write()
+        for conn in [silent_conn1, verbose_conn1]:
+            conn.send( (message, time.time()) )
+        time.sleep(opts.wait)
+
+        # verbose=False
+        assert silent_proc.is_alive(), 'verbose=False process died when queue was emptied'
+        assert silent_mtime==os.path.getmtime(silent_logfilename), 'logfile : %s was modified when it should not be\nmtime : %f'%(silent_logfilename, silent_mtime)
+        if opts.Verbose:
+            print( '    verbose=False process survived clearing the queue' )
+
+        # verbose=True
+        assert verbose_proc.is_alive(), 'verbose=True process died when queue was emptied'
+        assert verbose_mtime<os.path.getmtime(verbose_logfilename), 'logfile : %s was not modified when it should be\nmtime : %f'%(verbose_logfilename, verbose_mtime)
+
+        file_obj = open(verbose_logfilename, 'r')
+        for line in file_obj:
+            if ('len(queue)' in line) and ('<=' in line) and ('warnThr; emails sent to' in line):
+                break
+        else:
+            raise AssertionError, 'could not find recovery notice about reduced number of QueueItems in verbose=True logfile'
+        file_obj.close()
+
+        if opts.Verbose:
+            print( '    verbose=True process successfully survived clearing the queue and printed a Recovery notice' )
+        verbose_mtime = os.path.getmtime(verbose_logfilename)
+
+        ### clean up queue's in preparation for next check
+        message = commands.ClearQueue().write()
+        for conn1 in [silent_conn1, verbose_conn1]:
+            conn1.send( (message, time.time()) )
+        time.sleep(opts.wait)
+
+        assert silent_proc.is_alive(), 'verbose=False process died'
+        assert verbose_proc.is_alive(), 'verbose=True process died'
+
+        #--- garbage collection 
+        ### we only use silent_proc here because all this should be independent of verbose, recipients
+
+        ### cleaning up empty SortedQueues from queueByGraceID 
+
+        fakeid = 'fakeID'
+        randKey = gen_randKey()
+
+        blockid = 'blockID' ### used to prevent auto-cleanup outside of calls to SortedQueue.clean()
+        Ntrigger = int(np.ceil(opts.maxFrac/(1-opts.maxFrac)))+1 ### enough items to trigger clean up based on maxFrac
+
+        pklfilename = os.path.join(opts.logDir, 'silent_queue.pkl')
+
+        # verbose=False
+
+        ### add in item associated with particular GraceID
+        message = commands.PrintMessage(message=randKey, sleep=np.infty, graceid=fakeid).write()
+        silent_conn1.send( (message, time.time()) )
+        time.sleep(opts.wait)
+
+        ### checkpoint 
+        message = commands.CheckpointQueue(filename=pklfilename).write()
+        silent_conn1.send( (message, time.time()) )
+        time.sleep(opts.wait)
+
+        ### load in and look for queue, queueByGraceID structure
+        queue, queueByGraceID = pkl2queue( pklfilename )
+
+        assert len(queue)==1, 'queue\'s length is not what was expected'
+        assert queue[0].name=='printMessage', 'QueueItem referenced from queue was not of the expected type'
+        assert (len(queueByGraceID.keys())==1) and queueByGraceID.has_key(fakeid), 'queueByGraceID did not have the expected keys and only the expected keys'
+        assert queueByGraceID[fakeid][0].name=='printMessage', 'QueueItem referenced from queueByGraceID was not of the expected type'
+
+        ### clear the graceid
+        message = commands.ClearGraceID(graceid=fakeid).write()
+        silent_conn1.send( (message, time.time()) )
+        time.sleep(opts.wait)
+
+        ### checkpoint -> load in and look at queue, queueByGraceID structure
+        message = commands.CheckpointQueue(filename=pklfilename).write()
+        silent_conn1.send( (message, time.time()) )
+        time.sleep(opts.wait)
+
+        ### load in and look for queue, queueByGraceID structure
+        queue, queueByGraceID = pkl2queue( pklfilename )
+
+        assert len(queue)==0, 'queue was not empty' ### ClearGraceID should mark item as complete, and therefore it should be removed from queue automatically
+        assert len(queueByGraceID.keys())==0, 'QueueByGraceID was not empty'
+
+        if opts.Verbose:
+            print( '    successfully observed removal of empty SortedQueues from queueByGraceID' )
+
+        # verbose=True
+        ### not necessary to test this
+
+        # clean up 
+        silent_conn1.send( (commands.ClearQueue().write(), time.time()) )
+        time.sleep(opts.wait)
+
+        ### cleaning up queue when there are too many completed items
+
+        # send in a blocking item to prevent automatic cleanup outside of calls to SortedQueue.clean()
+        silent_conn1.send( (commands.PrintMessage(message='block automatic cleanup', sleep=1e6, graceid=blockid).write(), time.time()) ) ### long sleep, but less than infty
+        time.sleep(opts.wait)
+
+        # check for triggered cleanup based on maxFrac
+        if opts.Verbose:
+            print( '    generating %d QueueItems to test cleanup based on maxFrac'%Ntrigger )
+        for ind in xrange(Ntrigger): ### enough items to trigger clean up based on maxFrac
+            silent_conn1.send( (commands.PrintMessage(message='will be cleaned up %d'%ind, sleep=np.infty, graceid=fakeid).write(), time.time()) )
+            time.sleep(opts.wait)
+
+        # checkpoint and check structure
+        silent_conn1.send( (commands.CheckpointQueue(filename=pklfilename).write(), time.time()) )
+        time.sleep(opts.wait)
+
+        ### load in and look for queue, queueByGraceID structure
+        queue, queueByGraceID = pkl2queue( pklfilename )
+
+        assert len(queue)==1+Ntrigger, 'queue\'s length is not what was expected'
+        assert (queue[0].name=='printMessage') and (queue[0].graceid==blockid), 'QueueItem referenced from queue was not of the expected type'
+        assert (len(queueByGraceID.keys())==2) and queueByGraceID.has_key(fakeid) and queueByGraceID.has_key(blockid), 'queueByGraceID did not have the expected keys and only the expected keys'
+        assert queueByGraceID[blockid][0].name=='printMessage', 'QueueItem referenced from queueByGraceID was not of the expected type'
+        for item in queueByGraceID[fakeid]:
+            assert item.name=='printMessage', 'QueueItem referenced from queueByGraceID was not of the expected type'
+
+        # send ClearGraceID message
+        silent_conn1.send( (commands.ClearGraceID(graceid=fakeid).write(), time.time()) )
+        time.sleep(opts.wait)
+
+        # checkpoint and check structure
+        silent_conn1.send( (commands.CheckpointQueue(filename=pklfilename).write(), time.time()) )
+        time.sleep(opts.wait)
+
+        ### load in and look for queue, queueByGraceID structure
+        queue, queueByGraceID = pkl2queue( pklfilename )
+
+        assert len(queue)==1, 'queue\'s length is not what was expected'
+        assert (queue[0].name=='printMessage') and (queue[0].graceid==blockid), 'QueueItem referenced from queue was not of the expected type'
+        assert (len(queueByGraceID.keys())==1) and  queueByGraceID.has_key(blockid), 'queueByGraceID did not have the expected keys and only the expected keys'
+        assert queueByGraceID[blockid][0].name=='printMessage', 'QueueItem referenced from queueByGraceID was not of the expected type'
+        if opts.Verbose:
+            print( '    queue and queueByGraceID were cleaned up as expected based on maxFrac' )
+
+        # check for triggered cleanup based on maxComplete
+        if opts.Verbose:
+            print( '    adding %d QueueItems to test cleanup based on maxComplete'%(2*(opts.maxComplete+1)) )
+        for ind in xrange(opts.maxComplete+1):
+            silent_conn1.send( (commands.PrintMessage(message='block automatic cleanup %d'%ind, sleep=1e6, graceid=blockid).write(), time.time()) ) ### add these in so we don't re-trigger based on maxFrac
+            silent_conn1.send( (commands.PrintMessage(message='will be cleaned up %d'%ind, sleep=np.infty, graceid=fakeid).write(), time.time()) )
+            time.sleep(opts.wait)
+
+        # checpoint and check structure
+        silent_conn1.send( (commands.CheckpointQueue(filename=pklfilename).write(), time.time()) )
+        time.sleep(opts.wait)
+
+        ### load in and look for queue, queueByGraceID structure
+        queue, queueByGraceID = pkl2queue( pklfilename )
+
+        assert len(queue)==3+2*opts.maxComplete, 'queue\'s length is not what was expected'
+        assert (queue[0].name=='printMessage') and (queue[0].graceid==blockid), 'QueueItem referenced from queue was not of the expected type'
+        assert (len(queueByGraceID.keys())==2) and queueByGraceID.has_key(fakeid) and queueByGraceID.has_key(blockid), 'queueByGraceID did not have the expected keys and only the expected keys'
+        for item in queueByGraceID[blockid]:
+            assert item.name=='printMessage', 'QueueItem referenced from queueByGraceID was not of the expected type'
+        for item in queueByGraceID[fakeid]:
+            assert item.name=='printMessage', 'QueueItem referenced from queueByGraceID was not of the expected type'
+
+        # send ClearGraceID
+        silent_conn1.send( (commands.ClearGraceID(graceid=fakeid).write(), time.time()) )
+        time.sleep(opts.wait)
+
+        # checkpoint and check structure
+        silent_conn1.send( (commands.CheckpointQueue(filename=pklfilename).write(), time.time()) )
+        time.sleep(opts.wait)
+
+        ### load in and look for queue, queueByGraceID structure
+        queue, queueByGraceID = pkl2queue( pklfilename )
+
+        assert len(queue)==2+opts.maxComplete, 'queue\'s length is not what was expected'
+        assert (queue[0].name=='printMessage') and (queue[0].graceid==blockid), 'QueueItem referenced from queue was not of the expected type'
+        assert (len(queueByGraceID.keys())==1) and queueByGraceID.has_key(blockid), 'queueByGraceID did not have the expected keys and only the expected keys'
+        for item in queueByGraceID[blockid]:
+            assert item.name=='printMessage', 'QueueItem referenced from queueByGraceID was not of the expected type'
+        if opts.Verbose:
+            print( '    queue and queueByGraceID were cleaned up as ecpected based on maxComplete' )
+
+        #--- finish
+        if opts.verbose:
+            print( 'interactiveQueue passed all tests successfully' )
+
+    except Exception as e:
+        ### report on error
+        print( traceback.format_exc() )
+
+    #--- finsihed without errors
+    ### clean up processes
+    silent_proc.terminate()
+    verbose_proc.terminate()
