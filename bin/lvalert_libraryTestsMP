@@ -363,7 +363,7 @@ if opts.commands or opts.everything:
     task.kwargs['missing'] = 'no more'
     task.checkKWargs() ### should not raise an error
 
-    # change requirements so 'mising' is now forbidden
+    # change requirements so 'missing' is now forbidden
     task.forbidden_kwargs.append(task.required_kwargs.pop())
     try:
         task.checkKWargs()
@@ -372,7 +372,11 @@ if opts.commands or opts.everything:
         pass
 
     task.kwargs.pop('missing')
-    task.checkKWargs() ### this shoudl now pass
+    task.checkKWargs() ### this should now pass
+
+    ### clear out required/forbidden kwargs so we don't mess up things down the line
+    task.required_kwargs = []
+    task.forbidden_kwargs = []
 
     ### command
     #       confirm that this runs without raising exceptions 
@@ -407,16 +411,6 @@ if opts.commands or opts.everything:
 
     #--- Command
 
-    reload(commands)
-
-    ### __init__
-    try:
-        command = commands.Command(**kwargs)
-        raise AssertionError, 'Command.checkObject should have raised an error based on a bad name'
-    except KeyError:
-        pass
-
-    commands.__tid__['command'] = commands.CommandTask
     command = commands.Command(**kwargs)
 
     assert command.data['uid']=='command', 'Command.data["uid"] not set correctly'
@@ -424,12 +418,9 @@ if opts.commands or opts.everything:
     assert command.data['object']==kwargs, 'Command.data["object"] not set correctly'
 
     ### checkObject
-    # check for assertion error if name is bad
-    ### already checked as part of __init__
 
     # check required_kwargs
     commands.CommandTask.required_kwargs.append( 'required' )
-    commands.__tid__['command'] = commands.CommandTask
     try:
         command.checkObject()
         raise AssertionError, 'Command.checkObject should have raised an error based on a missing required_kwarg'
@@ -478,7 +469,6 @@ if opts.commands or opts.everything:
 
     ### genQueueItems
     t0 = time.time()
-    commands.__qid__['command'] = commands.CommandQueueItem
     items = command.genQueueItems(queue, queueByGraceID, t0, logTag=logTag)
     assert len(items)==1, 'too many items generated'
     item = items[0]
@@ -486,12 +476,23 @@ if opts.commands or opts.everything:
     assert item.t0==t0, 'item.t0 not set correctly'
     assert item.logTag==logTag, 'item.logTag not set correctly'
     
+    # check for error if command.name is changed
+    command.name = 'not real'
+    try:
+        command.genQueueItems(queue, queueByGraceID, t0, logTag=logTag)
+        raise AssertionError, 'Command.genQueueItems should have raised a KeyError based on a bad name'
+    except KeyError:
+        pass
+    command.name = 'command' ### reset this so we don't mess up later instantiations
+
+    # clear these out so we don't mess anything up down the line
+    commands.CommandTask.required_kwargs = []
+    commands.CommandTask.forbidden_kwargs = []
+
     if opts.Verbose:
         print( '    commands.Command passed all tests successfully' )
 
     #--- internal lookup
-
-    reload(commands) ### undo all the crap I did previously, like modifying static attributes
 
     ### __cid__, __qid__, __tid__
     cid_keys = commands.__cid__.keys()
@@ -499,7 +500,7 @@ if opts.commands or opts.everything:
     assert cid_keys==commands.__tid__.keys(), '__cid__ and __tid__ have different keys'
 
     ### initCommand(name, kwargs)
-    name = 'command' ### should not be allowed because I reloaded the module
+    name = 'not real' ### should not be allowed because I reloaded the module
     kwargs = dict()
     try:
         commands.initCommand(name, **kwargs)
@@ -507,14 +508,17 @@ if opts.commands or opts.everything:
     except KeyError:
         pass
 
+    name = 'command'
+    command = commands.initCommand(name, **kwargs) ### this should not raise an error, and this should pass
+
     ### knownCommands
     known = commands.knownCommands()
-    assert isinstance(known, list)
+    assert isinstance(known, list), 'knownCommands did not return a list'
     for name in known:
-        assert isinstance(name, str)
+        assert isinstance(name, str), 'element of knownCommands() was not a string'
 
     ### requiredKWargs and forbiddenKWargs
-    name = 'command'
+    name = 'not real'
     try:
         commands.requiredKWargs( name )
         raise AssertionError, 'requiredKWargs should have raised a KeyError about a bad name'
@@ -527,25 +531,22 @@ if opts.commands or opts.everything:
     except KeyError:
         pass
 
-    commands.__tid__['command'] = commands.CommandTask
-    required = commands.requiredKWargs( name ) ### should just work
-    forbidden = commands.forbiddenKWargs( name ) ### should just work
+    name = 'command' 
+    required = commands.requiredKWargs( name )
+    assert isinstance(required, list), 'requiredKWargs did not return a list'
+    assert required==commands.CommandTask.required_kwargs, 'requiredKWargs did not values stored within object'
 
-    assert isinstance(required, list)
-    assert required==commands.CommandTask.required_kwargs
-
-    assert isinstance(forbidden, list)
-    assert forbidden==commands.CommandTask.forbidden_kwargs
+    forbidden = commands.forbiddenKWargs( name )
+    assert isinstance(forbidden, list), 'forbiddenKWargs did not return a list'
+    assert forbidden==commands.CommandTask.forbidden_kwargs, 'forbiddenKWargs did not return values stored within object'
 
     if opts.Verbose:
         print( '    commands internal lookup passed all tests successfully' )
 
     #--- parseCommand
 
-    reload(commands)
-
     t0 = time.time()
-    alert = {'uid':'not command', 'alert_type':commands.Command.name, 'object':{'graceid':fakeid}}
+    alert = {'uid':'not command', 'alert_type':'not real', 'object':{'graceid':fakeid}}
 
     try: 
         commands.parseCommand( queue, queueByGraceID, alert, t0, logTag=logTag)
@@ -559,36 +560,54 @@ if opts.commands or opts.everything:
         raise AssertionError, 'parseCommand should have raised a KeyError from delegation to initCommand'
     except:
         pass
+    alert['alert_type'] = 'command'    
 
-    commands.__cid__['command'] = commands.Command
-    commands.__qid__['command'] = commands.CommandQueueItem
-    commands.__tid__['command'] = commands.CommandTask
-   
     commands.parseCommand(queue, queueByGraceID, alert, t0, logTag=logTag) ### should just work
-    assert len(queue)==1
+    assert len(queue)==1, 'queue was not modified correctly'
     item = queue[0]
-    assert item.name=='command'
-    assert item.expiration==-np.infty
-    assert len(queueByGraceID.keys())==1
-    assert len(queueByGraceID[fakeid])==1
-    assert queueByGraceID[fakeid][0]==item
+    assert item.name=='command', 'wrong QueueItem was inserted into queue'
+    assert item.expiration==-np.infty, 'Item\'s expiration was not set correctly'
+    assert len(queueByGraceID.keys())==1, 'queueByGraceID was not set correctly'
+    assert len(queueByGraceID[fakeid])==1, 'queueByGraceID\'s value has the wrong length'
+    assert queueByGraceID[fakeid][0]==item, 'queueByGraceID does not reference the same item as queue'
 
     commands.parseCommand(queue, queueByGraceID, json.loads(commands.Command(sleep=10).write()), t0, logTag=logTag)
-    assert len(queue)==2
-    assert len(queueByGraceID.keys())==1
-    assert len(queueByGraceID[fakeid])==1
+    assert len(queue)==2, 'queue was not modified correctly'
+    assert len(queueByGraceID.keys())==1, 'queueByGraceID contains an unexpected key'
+    assert len(queueByGraceID[fakeid])==1, 'queueByGraceID\'s value was modified unexpected'
     item = queue[1]
-    assert item.name=='command'
-    assert item.expiration==t0+10
+    assert item.name=='command', 'wrong type of QueueItem was created'
+    assert item.expiration==t0+10, 'item\'s expiration was not set correctly'
 
-    raise NotImplementedError, 'need to test parseCommand when there are required and/or forbidden kwargs'
+    # ensure we get the correct behavior when there are required_kwargs
+    commands.CommandTask.required_kwargs.append('required')
+    try:
+        commands.parseCommand(queue, queueByGraceID, alert, t0, logTag=logTag)
+        raise AssertionError, 'should have raised an error about missing kwargs'
+    except KeyError:
+        pass
+    alert['object']['required'] = 'present'
+    commands.parseCommand(queue, queueByGraceID, alert, t0, logTag=logTag) ### now should just pass
  
+    # ensure we get the correct behavior when there are forbidden_kwargs
+    commands.CommandTask.forbidden_kwargs.append('forbidden')
+    commands.parseCommand(queue, queueByGraceID, alert, t0, logTag=logTag) ### now should just pass
+    alert['object']['forbidden'] = 'present'
+    try:
+        commands.parseCommand(queue, queueByGraceID, alert, t0, logTag=logTag) ### now should just pass
+        raise AssertionError, 'should have raised an error about forbidden kwargs'
+    except KeyError:
+        pass
+
+    # again, clean these out so I don't mess myself up down the line
+    commands.CommandTask.required_kwargs = []
+    commands.CommandTask.forbidden_kwargs = []
+
     if opts.Verbose:
         print( '    commands.parseCommand passed all tests successfully' )
 
     #--- CommandTask functionality
 
-    reload(commands) ### get rid of changes to __cid__, __qid__, __tid__
     q = utils.SortedQueue()
     qbgid = dict()
     t0 = time.time()
@@ -617,11 +636,10 @@ if opts.commands or opts.everything:
     cqi = commands.ClearQueue().genQueueItems(q, qbgid, t0, logTag=logTag)[0]
     q.insert(cqi)
     cqi.execute()
-    assert len(q)==0
-    assert len(qbgid.keys())==0
+    assert len(q)==0, 'queue was not cleaned'
+    assert len(qbgid.keys())==0, 'queueByGraceID was not cleaned'
 
     ### clearGraceID (requires graceid)
-    q.insert(item)
     qbgid[fakeid] = utils.SortedQueue()
     qbgid[fakeid].insert(item)
 
@@ -632,14 +650,14 @@ if opts.commands or opts.everything:
         pass
 
     cqi = commands.ClearGraceID(graceid=fakeid).genQueueItems(q, qbgid, t0, logTag=logTag)[0]
+    q.insert(cqi)
     qbgid[cqi.graceid].insert(cqi)
     cqi.execute()
-    assert len(qbgid.keys())==1
-    assert len(qbgid[fakeid])==1
-    assert qbgid[fakeid][0]==cqi
-    assert cqi.complete
-    assert len(q)==1
-    assert q[0].complete
+    assert len(qbgid.keys())==1, 'queueByGraceID was emptied too much'
+    assert len(qbgid[fakeid])==1, 'queueByGraceID was emptied too much'
+    assert qbgid[fakeid][0]==cqi, 'queueByGraceID did not retain a reference to ClearGraceID item'
+    assert cqi.complete, 'ClearGraceID item was not marked complete'
+    assert len(q)==1 and q[0]==cqi, 'queue did not retain a reference to ClearGraceID item'
 
     ### checkpointQueue (requires filename)
     raise NotImplementedError
