@@ -160,6 +160,7 @@ def interactiveQueue(connection, config_filename, verbose=True, sleep=0.1, maxCo
         start = time.time()
 
         ### look for new data in the connection
+	print connection.poll()
         if connection.poll():
 
             ### this blocks until there is something to recieve, which is why we checked first!
